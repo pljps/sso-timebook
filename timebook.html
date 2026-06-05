@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SSO Timebook 2026</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --teal:#1D9E75; --teal-light:#E1F5EE; --teal-dark:#085041;
+  --amber:#BA7517; --amber-light:#FAEEDA;
+  --green:#3B6D11; --green-light:#EAF3DE;
+  --red:#A32D2D; --red-light:#FCEBEB;
+  --gray-bg:#F5F5F3; --border:#E2E0D9;
+  --text:#1A1A18; --muted:#6B6B66;
+  --white:#FFFFFF; --radius:10px; --radius-lg:14px;
+}
+html { font-size: 15px; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--gray-bg); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
+#welcome-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+.welcome-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--border); padding:32px 28px; width:100%; max-width:360px; text-align:center; }
+.welcome-logo { width:60px; height:60px; border-radius:16px; background:var(--teal-light); font-size:28px; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; }
+.welcome-card h1 { font-size:21px; font-weight:700; margin-bottom:6px; }
+.welcome-card .sub { color:var(--muted); font-size:14px; margin-bottom:28px; line-height:1.5; }
+.field-group { text-align:left; margin-bottom:14px; }
+.field-group label { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px; }
+.field-group input { width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius); font-size:15px; background:var(--gray-bg); color:var(--text); }
+.field-group input:focus { outline:none; border-color:var(--teal); background:var(--white); }
+.btn-start { width:100%; padding:14px; background:var(--teal); color:white; border:none; border-radius:var(--radius); font-size:15px; font-weight:700; cursor:pointer; margin-top:6px; }
+.btn-start:disabled { opacity:0.6; cursor:not-allowed; }
+.welcome-note { font-size:12px; color:var(--muted); margin-top:14px; line-height:1.5; }
+.err-msg { color:var(--red); font-size:13px; margin-top:10px; min-height:20px; }
+#app-screen { display:none; }
+.top-bar { position:sticky; top:0; z-index:50; background:var(--white); border-bottom:1px solid var(--border); padding:12px 16px 0; }
+.top-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
+.top-row h1 { font-size:17px; font-weight:700; }
+.user-pill { font-size:12px; background:var(--teal-light); color:var(--teal-dark); padding:4px 10px; border-radius:100px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+.month-tabs { display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; padding-bottom:1px; }
+.month-tabs::-webkit-scrollbar { display:none; }
+.mtab { flex-shrink:0; font-size:12px; font-weight:600; padding:6px 11px; border-radius:8px 8px 0 0; cursor:pointer; border:none; background:transparent; color:var(--muted); border-bottom:2px solid transparent; }
+.mtab.active { color:var(--teal-dark); border-bottom-color:var(--teal); background:var(--teal-light); }
+.mtab.submitted { color:var(--amber); }
+.mtab.approved  { color:var(--green); }
+.summary-bar { display:flex; gap:8px; padding:10px 16px; background:var(--white); border-bottom:1px solid var(--border); }
+.stat { flex:1; text-align:center; }
+.stat-val { font-size:17px; font-weight:700; display:block; }
+.stat-lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-top:1px; }
+.pos { color:var(--green); } .neg { color:var(--red); }
+.s-banner { margin:12px 16px; padding:11px 14px; border-radius:var(--radius); font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.b-submitted { background:var(--amber-light); color:var(--amber); }
+.b-approved  { background:var(--green-light); color:var(--green); }
+.tbl-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { width:100%; border-collapse:collapse; font-size:12px; min-width:600px; }
+thead th { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; padding:8px 4px 7px; background:#F9F8F5; border-bottom:1px solid var(--border); text-align:center; white-space:nowrap; }
+thead th:first-child { text-align:left; padding-left:16px; min-width:62px; }
+thead th:last-child { padding-right:16px; }
+tbody tr { border-bottom:1px solid var(--border); }
+tbody tr:hover { background:#FAFAF8; }
+tbody tr.ph { background:#FFF8EC; }
+tbody tr.we { background:#FAFAF8; opacity:0.72; }
+tbody td { padding:4px 3px; text-align:center; vertical-align:middle; }
+tbody td:first-child { padding-left:16px; text-align:left; }
+tbody td:last-child { padding-right:16px; }
+.date-cell { display:flex; flex-direction:column; line-height:1.3; }
+.dn { font-size:10px; color:var(--muted); } .dd { font-size:13px; font-weight:700; }
+.ph-tag { font-size:9px; background:var(--amber); color:white; padding:1px 4px; border-radius:4px; margin-top:2px; display:inline-block; }
+input.ti { width:64px; font-size:12px; padding:5px 3px; border:1px solid var(--border); border-radius:7px; text-align:center; background:var(--white); color:var(--text); }
+input.ti:focus { outline:none; border-color:var(--teal); background:#F0FAF6; }
+input.ti.ros { width:46px; } input.ti.nts { width:96px; font-size:11px; }
+input.ti:disabled { background:var(--gray-bg)!important; border-color:transparent!important; color:var(--muted); cursor:not-allowed; }
+.calc { font-size:12px; font-weight:700; min-width:34px; }
+.action-bar { position:fixed; bottom:0; left:0; right:0; background:var(--white); border-top:1px solid var(--border); padding:12px 16px; display:flex; gap:10px; box-shadow:0 -4px 20px rgba(0,0,0,0.07); }
+.btn { flex:1; padding:13px 10px; border-radius:var(--radius); font-size:14px; font-weight:700; border:1px solid var(--border); cursor:pointer; background:var(--white); color:var(--text); }
+.btn:active { transform:scale(0.97); }
+.btn-submit { background:var(--teal); color:white; border-color:var(--teal); }
+.btn-print { background:var(--white); max-width:90px; }
+.btn:disabled { background:#eee; color:#aaa; border-color:transparent; cursor:not-allowed; transform:none; }
+.save-ind { position:fixed; top:10px; right:12px; z-index:200; font-size:12px; font-weight:600; padding:6px 14px; border-radius:100px; pointer-events:none; opacity:0; transition:opacity 0.3s; }
+.save-ind.show { opacity:1; } .save-ind.ok { background:var(--teal); color:white; } .save-ind.err { background:var(--red-light); color:var(--red); }
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:300; align-items:center; justify-content:center; padding:20px; }
+.modal-bg.open { display:flex; }
+.modal { background:var(--white); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:340px; }
+.modal h2 { font-size:17px; font-weight:700; margin-bottom:8px; }
+.modal p { font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.6; }
+.modal-btns { display:flex; gap:10px; }
+.modal-btns .btn { padding:12px; }
+.btn-confirm { background:var(--teal); color:white; border-color:var(--teal); }
+.loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 24px; gap:14px; color:var(--muted); font-size:14px; }
+.spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@media print {
+  body { background:white; padding:0; }
+  .top-bar,.action-bar,.save-ind,.modal-bg,#welcome-screen { display:none!important; }
+  #app-screen { display:block!important; }
+  table { min-width:unset; font-size:10px; }
+  input.ti { border:none; background:transparent; color:black; width:auto; }
+  .ph { background:#fff8ec!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .print-hdr { display:block!important; padding:12px 16px 4px; font-size:13px; }
+}
+.print-hdr { display:none; }
+</style>
+</head>
+<body>
+<div id="welcome-screen">
+  <div class="welcome-card">
+    <div class="welcome-logo">🕐</div>
+    <h1>SSO Timebook 2026</h1>
+    <p class="sub">Enter your details below. They'll be saved on this device so you only need to do this once.</p>
+    <div class="field-group">
+      <label>Your Full Name</label>
+      <input type="text" id="w-name" placeholder="e.g. Sarah Johnson" autocomplete="name">
+    </div>
+    <div class="field-group">
+      <label>Employee ID</label>
+      <input type="text" id="w-id" placeholder="e.g. SSO-001" autocomplete="off">
+    </div>
+    <button class="btn-start" id="start-btn" onclick="startApp()">Open My Timebook →</button>
+    <div class="err-msg" id="w-err"></div>
+    <p class="welcome-note">Your hours are saved securely — accessible from any device.</p>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="top-bar">
+    <div class="top-row">
+      <h1>SSO Timebook 2026</h1>
+      <span class="user-pill" id="user-pill">–</span>
+    </div>
+    <div class="month-tabs" id="month-tabs"></div>
+  </div>
+  <div class="print-hdr" id="print-hdr"></div>
+  <div id="sheet-area"></div>
+  <div class="action-bar" id="action-bar"></div>
+</div>
+
+<div class="save-ind ok" id="save-ind">✓ Saved</div>
+
+<div class="modal-bg" id="modal-submit">
+  <div class="modal">
+    <h2>Submit for approval?</h2>
+    <p>Once submitted you won't be able to edit this month's timesheet. Your manager will be notified by email to review and approve.</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-submit')">Cancel</button>
+      <button class="btn btn-confirm" onclick="confirmSubmit()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
+const RESEND_KEY   = 're_ZgLbWrys_NgztLeuCmFm6v2my4rj9t78B';
+const MANAGER_EMAIL = 'kelsey.enright748@schools.sa.edu.au';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PUBLIC_HOLIDAYS = {
+  '2026-01-01':"New Year's Day",'2026-01-26':'Australia Day',
+  '2026-04-03':'Good Friday','2026-04-06':'Easter Monday',
+  '2026-04-25':'ANZAC Day','2026-06-08':"King's Birthday",
+  '2026-12-25':'Christmas Day','2026-12-28':'Proclamation Day (sub)'
+};
+
+let currentUser = null, currentMonth = new Date().getMonth();
+let monthMeta = {}, monthRows = {}, saveTimer = null, isSaving = false;
+
+function saveLocal(n,i){ try{localStorage.setItem('sso_tb',JSON.stringify({name:n,employeeId:i}));}catch(e){} }
+function loadLocal(){ try{const u=localStorage.getItem('sso_tb');return u?JSON.parse(u):null;}catch(e){return null;} }
+
+async function sb(path, method='GET', body=null){
+  const opts={method,headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};
+  if(body) opts.body=JSON.stringify(body);
+  const r=await fetch(SUPABASE_URL+'/rest/v1'+path,opts);
+  if(!r.ok){ const t=await r.text(); throw new Error(r.status+': '+t); }
+  const t=await r.text(); return t?JSON.parse(t):null;
+}
+
+async function loadSheets(empId){
+  const d=await sb('/timesheets?employee_id=eq.'+encodeURIComponent(empId)+'&year=eq.2026&select=*');
+  return d||[];
+}
+
+async function saveSheet(empId,empName,mi,status,rows){
+  const meta=monthMeta[mi];
+  if(meta.spId){
+    await sb('/timesheets?id=eq.'+meta.spId,'PATCH',{status,rows,updated_at:new Date().toISOString()});
+  } else {
+    const res=await sb('/timesheets','POST',{employee_id:empId,employee_name:empName,month_index:mi,year:2026,status,rows,updated_at:new Date().toISOString()});
+    if(res&&res[0]) monthMeta[mi].spId=res[0].id;
+  }
+  monthMeta[mi].status=status;
+}
+
+async function sendEmail(empName,empId,monthName,worked,rostered,variation){
+  try {
+    await fetch('https://api.resend.com/emails',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+RESEND_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({
+        from:'SSO Timebook <onboarding@resend.dev>',
+        to:[MANAGER_EMAIL],
+        subject:'⏳ Timesheet submitted: '+empName+' — '+monthName+' 2026',
+        html:'<p>Hi Kelsey,</p><p><strong>'+empName+'</strong> ('+empId+') has submitted their timesheet for <strong>'+monthName+' 2026</strong> for your approval.</p><table style="border-collapse:collapse;margin:16px 0"><tr><td style="padding:4px 12px 4px 0;color:#666">Hours worked:</td><td><strong>'+worked+'</strong></td></tr><tr><td style="padding:4px 12px 4px 0;color:#666">Hours rostered:</td><td><strong>'+rostered+'</strong></td></tr><tr><td style="padding:4px 12px 4px 0;color:#666">Variation:</td><td><strong>'+variation+'</strong></td></tr></table><p>Please log in to the manager dashboard to approve.</p><p style="color:#999;font-size:12px">SSO Timebook 2026 — automated notification</p>'
+      })
+    });
+  } catch(e){ console.warn('Email failed (non-critical):',e); }
+}
+
+async function startApp(){
+  const name=document.getElementById('w-name').value.trim();
+  const id=document.getElementById('w-id').value.trim().toUpperCase();
+  const err=document.getElementById('w-err');
+  const btn=document.getElementById('start-btn');
+  err.textContent='';
+  if(!name){err.textContent='Please enter your full name.';return;}
+  if(!id){err.textContent='Please enter your Employee ID.';return;}
+  btn.textContent='Loading…';btn.disabled=true;
+  currentUser={name,employeeId:id};
+  try{
+    await initApp();
+    saveLocal(name,id);
+  }catch(e){
+    console.error(e);
+    err.textContent='Connection error — please check your internet and try again.';
+    btn.textContent='Open My Timebook →';btn.disabled=false;currentUser=null;
+  }
+}
+
+document.getElementById('w-id').addEventListener('keydown',e=>{if(e.key==='Enter')startApp();});
+
+async function initApp(){
+  document.getElementById('welcome-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('user-pill').textContent=currentUser.name;
+  document.getElementById('sheet-area').innerHTML='<div class="loading"><div class="spinner"></div><span>Loading your timesheets…</span></div>';
+  const existing=await loadSheets(currentUser.employeeId);
+  MONTHS.forEach((_,i)=>{
+    const f=existing.find(x=>x.month_index===i);
+    monthMeta[i]={status:f?f.status:'draft',spId:f?f.id:null};
+    let rows=null;
+    if(f&&f.rows){try{rows=typeof f.rows==='string'?JSON.parse(f.rows):f.rows;}catch(e){rows=null;}}
+    monthRows[i]=rows||buildEmpty(i);
+  });
+  renderTabs();renderSheet();
+  setTimeout(()=>{const a=document.querySelector('.mtab.active');if(a)a.scrollIntoView({inline:'center',behavior:'smooth'});},100);
+}
+
+function buildEmpty(mi){
+  const days=new Date(2026,mi+1,0).getDate();
+  return Array.from({length:days},(_,i)=>{
+    const d=i+1,iso='2026-'+String(mi+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    return{date:iso,arrival:'',startBreak1:'',endBreak1:'',startBreak2:'',endBreak2:'',depart:'',rostered:'',notes:'',isPublicHoliday:!!PUBLIC_HOLIDAYS[iso],phName:PUBLIC_HOLIDAYS[iso]||''};
+  });
+}
+
+function parseTime(t){if(!t||!t.includes(':'))return null;const[h,m]=t.split(':').map(Number);return isNaN(h)||isNaN(m)?null:h*60+m;}
+function calcWorked(row){const a=parseTime(row.arrival),d=parseTime(row.depart);if(a===null||d===null)return'';let w=d-a;const s1=parseTime(row.startBreak1),e1=parseTime(row.endBreak1);if(s1!==null&&e1!==null&&e1>s1)w-=(e1-s1);const s2=parseTime(row.startBreak2),e2=parseTime(row.endBreak2);if(s2!==null&&e2!==null&&e2>s2)w-=(e2-s2);return w<0?'0.00':(w/60).toFixed(2);}
+function calcVar(row){const w=calcWorked(row),r=parseFloat(row.rostered);if(w===''&&isNaN(r))return'';return((w===''?0:parseFloat(w))-(isNaN(r)?0:r)).toFixed(2);}
+function dayName(iso){return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(iso+'T00:00:00').getDay()];}
+function isWE(iso){const d=new Date(iso+'T00:00:00').getDay();return d===0||d===6;}
+function totals(rows){let tw=0,tr=0;rows.forEach(r=>{tw+=parseFloat(calcWorked(r))||0;tr+=parseFloat(r.rostered)||0;});return{worked:tw,rostered:tr,variation:tw-tr};}
+
+function renderTabs(){
+  document.getElementById('month-tabs').innerHTML=MONTHS.map((m,i)=>{
+    const s=monthMeta[i].status;
+    let c='mtab';if(i===currentMonth)c+=' active';if(s==='submitted')c+=' submitted';if(s==='approved')c+=' approved';
+    return'<button class="'+c+'" onclick="switchMonth('+i+')">'+m.slice(0,3)+'</button>';
+  }).join('');
+}
+
+function renderSheet(){
+  const rows=monthRows[currentMonth],meta=monthMeta[currentMonth];
+  const locked=meta.status==='approved',sub=meta.status==='submitted',edit=!locked&&!sub,dis=edit?'':'disabled';
+  const t=totals(rows);
+  document.getElementById('print-hdr').innerHTML='<strong>'+currentUser.name+'</strong> ('+currentUser.employeeId+') — '+MONTHS[currentMonth]+' 2026 · Status: '+meta.status;
+  let html='';
+  if(sub) html+='<div class="s-banner b-submitted">⏳ Submitted — awaiting manager approval</div>';
+  if(locked) html+='<div class="s-banner b-approved">✓ Approved &amp; locked</div>';
+  html+='<div class="summary-bar"><div class="stat"><span class="stat-val">'+t.worked.toFixed(2)+'</span><span class="stat-lbl">Worked</span></div><div class="stat"><span class="stat-val">'+t.rostered.toFixed(2)+'</span><span class="stat-lbl">Rostered</span></div><div class="stat"><span class="stat-val '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="stat-lbl">Variation</span></div><div class="stat"><span class="stat-val" style="font-size:12px">'+MONTHS[currentMonth]+'</span><span class="stat-lbl">Period</span></div></div>';
+  html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>';
+  rows.forEach((row,idx)=>{
+    const ph=row.isPublicHoliday,we=isWE(row.date),w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
+    html+='<tr class="'+(ph?'ph':we?'we':'')+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?(vn>=0?'+':'')+v:'—')+'</td><td><input class="ti nts" type="text" value="'+(row.notes||'')+'" '+dis+' placeholder="'+(row.phName||'')+'" oninput="cell('+idx+',\'notes\',this.value)"></td></tr>';
+  });
+  html+='</tbody></table></div>';
+  document.getElementById('sheet-area').innerHTML=html;
+  let acts='';
+  if(edit) acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn btn-submit" onclick="openModal(\'modal-submit\')">Submit for Approval →</button>';
+  else if(sub) acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn" disabled>Awaiting Approval…</button>';
+  else acts='<button class="btn btn-submit" style="background:var(--green);border-color:var(--green)" onclick="window.print()">🖨 Print Approved Timesheet</button>';
+  document.getElementById('action-bar').innerHTML=acts;
+}
+
+function switchMonth(i){currentMonth=i;renderTabs();renderSheet();setTimeout(()=>{const a=document.querySelector('.mtab.active');if(a)a.scrollIntoView({inline:'center',behavior:'smooth'});},50);}
+
+function cell(idx,field,value){
+  monthRows[currentMonth][idx][field]=value;
+  const row=monthRows[currentMonth][idx],w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
+  const wEl=document.getElementById('w-'+idx),vEl=document.getElementById('v-'+idx);
+  if(wEl)wEl.textContent=w||'—';
+  if(vEl){vEl.textContent=v!==''?(vn>=0?'+':'')+v:'—';vEl.className='calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'');}
+  const t=totals(monthRows[currentMonth]),sv=document.querySelectorAll('.stat-val');
+  if(sv[0])sv[0].textContent=t.worked.toFixed(2);
+  if(sv[1])sv[1].textContent=t.rostered.toFixed(2);
+  if(sv[2]){sv[2].textContent=(t.variation>=0?'+':'')+t.variation.toFixed(2);sv[2].className='stat-val '+(t.variation>=0?'pos':'neg');}
+  clearTimeout(saveTimer);saveTimer=setTimeout(autoSave,2000);
+}
+
+async function autoSave(){
+  if(isSaving||monthMeta[currentMonth].status==='approved')return;
+  isSaving=true;const ind=document.getElementById('save-ind');
+  try{
+    await saveSheet(currentUser.employeeId,currentUser.name,currentMonth,monthMeta[currentMonth].status,monthRows[currentMonth]);
+    ind.className='save-ind ok show';setTimeout(()=>ind.classList.remove('show'),2000);
+  }catch(e){
+    ind.className='save-ind err show';ind.textContent='⚠ Save failed';
+    setTimeout(()=>ind.classList.remove('show'),4000);console.error(e);
+  }finally{isSaving=false;}
+}
+
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+async function confirmSubmit(){
+  closeModal('modal-submit');
+  const btn=document.querySelector('.btn-submit');
+  if(btn){btn.disabled=true;btn.textContent='Submitting…';}
+  try{
+    await saveSheet(currentUser.employeeId,currentUser.name,currentMonth,'submitted',monthRows[currentMonth]);
+    const t=totals(monthRows[currentMonth]);
+    await sendEmail(currentUser.name,currentUser.employeeId,MONTHS[currentMonth],t.worked.toFixed(2),t.rostered.toFixed(2),(t.variation>=0?'+':'')+t.variation.toFixed(2));
+    renderTabs();renderSheet();
+  }catch(e){
+    alert('Error submitting — please try again.');
+    monthMeta[currentMonth].status='draft';console.error(e);renderSheet();
+  }
+}
+
+(function boot(){
+  const s=loadLocal();
+  if(s&&s.name&&s.employeeId){
+    currentUser=s;
+    initApp().catch(e=>{
+      console.error(e);currentUser=null;
+      document.getElementById('welcome-screen').style.display='flex';
+      document.getElementById('app-screen').style.display='none';
+      document.getElementById('w-err').textContent='Session expired — please sign in again.';
+    });
+  }
+})();
+</script>
+</body>
+</html>

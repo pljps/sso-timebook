@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSO Timebook — Manager Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;--amber:#BA7517;--amber-light:#FAEEDA;--green:#3B6D11;--green-light:#EAF3DE;--red:#A32D2D;--red-light:#FCEBEB;--gray-bg:#F5F5F3;--border:#E2E0D9;--text:#1A1A18;--muted:#6B6B66;--white:#FFFFFF;--radius:10px;--radius-lg:14px;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--gray-bg);color:var(--text);font-size:14px;}
+.header{background:var(--white);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:50;}
+.header h1{font-size:20px;font-weight:700;}.header p{font-size:13px;color:var(--muted);margin-top:2px;}
+.header-right{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{padding:9px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;border:1px solid var(--border);cursor:pointer;background:var(--white);color:var(--text);}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--teal);color:white;border-color:var(--teal);}
+.btn-export{background:var(--teal-light);color:var(--teal-dark);border-color:var(--teal);}
+.main{max-width:1100px;margin:0 auto;padding:20px 20px 60px;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;}
+.stat-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;}
+.stat-card .v{font-size:26px;font-weight:700;display:block;}.stat-card .l{font-size:12px;color:var(--muted);margin-top:2px;display:block;}
+.v-sub{color:var(--amber);}.v-app{color:var(--green);}.v-tot{color:var(--teal);}
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.filters select,.filters input{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--white);color:var(--text);font-size:13px;}
+.filters input{flex:1;min-width:180px;}
+.tbl-wrap{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px;}
+thead th{background:#F9F8F5;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);}tbody tr:hover{background:#FAFAF8;}tbody tr:last-child{border-bottom:none;}
+tbody td{padding:10px 14px;vertical-align:middle;}
+.pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;}
+.p-draft{background:#F1EFE8;color:var(--muted);}.p-submitted{background:var(--amber-light);color:var(--amber);}.p-approved{background:var(--green-light);color:var(--green);}
+.pos{color:var(--green);font-weight:700;}.neg{color:var(--red);font-weight:700;}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-review{background:var(--amber-light);color:var(--amber);border-color:var(--amber);}
+.btn-view{background:var(--teal-light);color:var(--teal-dark);border-color:var(--teal);}
+.empty{text-align:center;padding:48px 24px;color:var(--muted);}
+.empty span{font-size:36px;display:block;margin-bottom:12px;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;overflow-y:auto;padding:20px;}
+.overlay.open{display:block;}
+.detail{background:var(--white);border-radius:var(--radius-lg);max-width:860px;margin:0 auto;padding:28px;}
+.detail-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.detail-top h2{font-size:20px;font-weight:700;}.detail-top p{color:var(--muted);font-size:13px;margin-top:4px;}
+.close-btn{font-size:22px;cursor:pointer;background:none;border:none;color:var(--muted);padding:0 4px;}
+.d-stats{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.ds{background:var(--gray-bg);padding:12px 16px;border-radius:var(--radius);flex:1;min-width:110px;text-align:center;}
+.ds .v{font-size:20px;font-weight:700;display:block;}.ds .l{font-size:11px;color:var(--muted);}
+.d-tbl-wrap{overflow-x:auto;margin-bottom:20px;}
+.d-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:560px;}
+.d-tbl thead th{background:#F9F8F5;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--border);}
+.d-tbl tbody td{padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;}
+.d-tbl tbody tr.ph-r{background:#FFF8EC;}.d-tbl tbody tr.we-r{background:#FAFAF8;opacity:0.72;}
+.d-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-row td{padding:32px;color:var(--muted);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:white;padding:10px 20px;border-radius:100px;font-size:13px;font-weight:600;z-index:500;opacity:0;pointer-events:none;transition:opacity 0.3s;white-space:nowrap;}
+.toast.show{opacity:1;}
+@media print{.header .header-right,.filters,.d-actions{display:none!important;}.overlay{position:static;background:none;padding:0;display:block!important;}.detail{box-shadow:none;border:none;}.d-tbl{font-size:10px;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>📋 SSO Timebook — Manager Dashboard</h1>
+    <p id="hdr-sub">Loading…</p>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-export" onclick="exportAll()">⬇ Export CSV</button>
+    <button class="btn btn-primary" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat-card"><span class="v v-tot" id="s-total">—</span><span class="l">Total Submissions</span></div>
+    <div class="stat-card"><span class="v v-sub" id="s-sub">—</span><span class="l">Awaiting Approval</span></div>
+    <div class="stat-card"><span class="v v-app" id="s-app">—</span><span class="l">Approved</span></div>
+    <div class="stat-card"><span class="v" id="s-emp">—</span><span class="l">Unique SSOs</span></div>
+  </div>
+  <div class="filters">
+    <select id="f-month" onchange="applyFilters()"><option value="">All months</option></select>
+    <select id="f-status" onchange="applyFilters()">
+      <option value="">All statuses</option>
+      <option value="submitted">Awaiting approval</option>
+      <option value="approved">Approved</option>
+      <option value="draft">Draft</option>
+    </select>
+    <input type="text" id="f-search" placeholder="Search by name or ID…" oninput="applyFilters()">
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Employee</th><th>ID</th><th>Month</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+      <tbody id="tbody"><tr class="loading-row"><td colspan="9"><div style="display:flex;align-items:center;gap:12px"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="detail" id="detail-content"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PUBLIC_HOLIDAYS={'2026-01-01':"New Year's Day",'2026-01-26':'Australia Day','2026-04-03':'Good Friday','2026-04-06':'Easter Monday','2026-04-25':'ANZAC Day','2026-06-08':"King's Birthday",'2026-12-25':'Christmas Day','2026-12-28':'Proclamation Day (sub)'};
+
+let allItems=[],filtered=[];
+
+async function sb(path,method='GET',body=null){
+  const opts={method,headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(SUPABASE_URL+'/rest/v1'+path,opts);
+  if(!r.ok)throw new Error(r.status+': '+await r.text());
+  const t=await r.text();return t?JSON.parse(t):null;
+}
+
+async function loadAll(){
+  document.getElementById('tbody').innerHTML='<tr class="loading-row"><td colspan="9"><div style="display:flex;align-items:center;gap:12px"><div class="spinner"></div>Loading…</div></td></tr>';
+  try{
+    const data=await sb('/timesheets?year=eq.2026&select=*&order=updated_at.desc&limit=500');
+    allItems=(data||[]).map(item=>({
+      id:item.id,empId:item.employee_id,empName:item.employee_name||item.employee_id,
+      month:item.month_index,status:item.status||'draft',
+      rows:item.rows?(typeof item.rows==='string'?JSON.parse(item.rows):item.rows):[],
+      updated:item.updated_at
+    }));
+    updateStats();
+    document.getElementById('hdr-sub').textContent='Kelsey Enright · Last refreshed '+new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+    applyFilters();
+  }catch(e){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="9" style="padding:24px;color:var(--red)">⚠ Error: '+e.message+'</td></tr>';
+    console.error(e);
+  }
+}
+
+function updateStats(){
+  const emps=new Set(allItems.map(i=>i.empId));
+  document.getElementById('s-total').textContent=allItems.length;
+  document.getElementById('s-sub').textContent=allItems.filter(i=>i.status==='submitted').length;
+  document.getElementById('s-app').textContent=allItems.filter(i=>i.status==='approved').length;
+  document.getElementById('s-emp').textContent=emps.size;
+}
+
+function applyFilters(){
+  const month=document.getElementById('f-month').value;
+  const status=document.getElementById('f-status').value;
+  const search=document.getElementById('f-search').value.toLowerCase();
+  filtered=allItems.filter(item=>{
+    if(month!==''&&item.month!==parseInt(month))return false;
+    if(status!==''&&item.status!==status)return false;
+    if(search&&!item.empName.toLowerCase().includes(search)&&!item.empId.toLowerCase().includes(search))return false;
+    return true;
+  });
+  renderTable();
+}
+
+function parseTime(t){if(!t||!t.includes(':'))return null;const[h,m]=t.split(':').map(Number);return isNaN(h)||isNaN(m)?null:h*60+m;}
+function calcWorked(row){const a=parseTime(row.arrival),d=parseTime(row.depart);if(a===null||d===null)return'';let w=d-a;const s1=parseTime(row.startBreak1),e1=parseTime(row.endBreak1);if(s1!==null&&e1!==null&&e1>s1)w-=(e1-s1);const s2=parseTime(row.startBreak2),e2=parseTime(row.endBreak2);if(s2!==null&&e2!==null&&e2>s2)w-=(e2-s2);return w<0?'0.00':(w/60).toFixed(2);}
+function totals(rows){let tw=0,tr=0;(rows||[]).forEach(r=>{tw+=parseFloat(calcWorked(r))||0;tr+=parseFloat(r.rostered)||0;});return{worked:tw,rostered:tr,variation:tw-tr};}
+function dayName(iso){return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(iso+'T00:00:00').getDay()];}
+function isWE(iso){const d=new Date(iso+'T00:00:00').getDay();return d===0||d===6;}
+
+function renderTable(){
+  const tbody=document.getElementById('tbody');
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty"><span>📭</span>No timesheets match your filters.</div></td></tr>';return;}
+  tbody.innerHTML=filtered.map(item=>{
+    const t=totals(item.rows);
+    const upd=item.updated?new Date(item.updated).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'2-digit'}):'—';
+    const vc=t.variation>=0?'pos':'neg',vs=(t.variation>=0?'+':'')+t.variation.toFixed(2);
+    const pc=item.status==='approved'?'p-approved':item.status==='submitted'?'p-submitted':'p-draft';
+    const pt=item.status==='approved'?'✓ Approved':item.status==='submitted'?'⏳ Submitted':'Draft';
+    let ab='';
+    if(item.status==='submitted')ab='<button class="btn btn-review btn-sm" onclick="openDetail(\''+item.id+'\')">Review →</button>';
+    else if(item.rows.length)ab='<button class="btn btn-view btn-sm" onclick="openDetail(\''+item.id+'\')">View</button>';
+    return'<tr><td><strong>'+item.empName+'</strong></td><td style="color:var(--muted);font-size:12px">'+item.empId+'</td><td>'+MONTHS[item.month]+'</td><td>'+(t.worked>0?t.worked.toFixed(2):'—')+'</td><td>'+(t.rostered>0?t.rostered.toFixed(2):'—')+'</td><td class="'+(t.worked>0?vc:'')+'">'+(t.worked>0?vs:'—')+'</td><td><span class="pill '+pc+'">'+pt+'</span></td><td style="color:var(--muted);font-size:12px">'+upd+'</td><td>'+ab+'</td></tr>';
+  }).join('');
+}
+
+function openDetail(itemId){
+  const item=allItems.find(i=>i.id===itemId);if(!item)return;
+  const t=totals(item.rows);
+  const pc=item.status==='approved'?'p-approved':item.status==='submitted'?'p-submitted':'p-draft';
+  const pt=item.status==='approved'?'✓ Approved':item.status==='submitted'?'⏳ Submitted':'Draft';
+  const rowsHtml=item.rows.map(row=>{
+    const w=calcWorked(row),v=parseFloat(w||0)-parseFloat(row.rostered||0);
+    const ph=row.isPublicHoliday,we=isWE(row.date);
+    return'<tr class="'+(ph?'ph-r':we?'we-r':'')+'"><td>'+dayName(row.date)+' '+parseInt(row.date.split('-')[2])+' '+(ph?'<span style="font-size:9px;background:var(--amber);color:white;padding:1px 4px;border-radius:3px">PH</span>':'')+'</td><td>'+(row.arrival||'—')+'</td><td>'+(row.startBreak1||'—')+'</td><td>'+(row.endBreak1||'—')+'</td><td>'+(row.startBreak2||'—')+'</td><td>'+(row.endBreak2||'—')+'</td><td>'+(row.depart||'—')+'</td><td><strong>'+(w||'—')+'</strong></td><td>'+(row.rostered||'—')+'</td><td class="'+(row.arrival?(v>=0?'pos':'neg'):'')+'">'+(row.arrival?(v>=0?'+':'')+v.toFixed(2):'—')+'</td><td style="font-size:11px;color:var(--muted)">'+(row.notes||'')+'</td></tr>';
+  }).join('');
+  const approveBtn=item.status==='submitted'?'<button class="btn btn-primary" onclick="approveItem(\''+item.id+'\')">✓ Approve Timesheet</button>':'';
+  const unlockBtn=item.status==='approved'?'<button class="btn" style="border-color:var(--red);color:var(--red)" onclick="unlockItem(\''+item.id+'\')">↩ Unlock for editing</button>':'';
+  document.getElementById('detail-content').innerHTML='<div class="detail-top"><div><h2>'+item.empName+'</h2><p>'+item.empId+' &nbsp;·&nbsp; '+MONTHS[item.month]+' 2026 &nbsp;·&nbsp; <span class="pill '+pc+'">'+pt+'</span></p></div><button class="close-btn" onclick="closeDetail()">✕</button></div><div class="d-stats"><div class="ds"><span class="v">'+t.worked.toFixed(2)+'</span><span class="l">Hours worked</span></div><div class="ds"><span class="v">'+t.rostered.toFixed(2)+'</span><span class="l">Rostered</span></div><div class="ds"><span class="v '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="l">Variation</span></div></div><div class="d-tbl-wrap"><table class="d-tbl"><thead><tr><th>Date</th><th>Arrival</th><th>B1 S</th><th>B1 E</th><th>B2 S</th><th>B2 E</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div><div class="d-actions">'+approveBtn+unlockBtn+'<button class="btn btn-export" onclick="exportSingle(\''+item.id+'\')">⬇ Export CSV</button><button class="btn" onclick="window.print()">🖨 Print</button></div>';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeDetail(){document.getElementById('overlay').classList.remove('open');}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeDetail();});
+
+async function approveItem(itemId){
+  const item=allItems.find(i=>i.id===itemId);
+  if(!item||!confirm('Approve '+item.empName+"'s timesheet for "+MONTHS[item.month]+' 2026?\n\nThis will lock it for the employee.'))return;
+  try{
+    await sb('/timesheets?id=eq.'+itemId,'PATCH',{status:'approved',updated_at:new Date().toISOString()});
+    item.status='approved';updateStats();applyFilters();closeDetail();
+    showToast('✓ Approved — '+item.empName+', '+MONTHS[item.month]);
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function unlockItem(itemId){
+  const item=allItems.find(i=>i.id===itemId);
+  if(!item||!confirm('Unlock '+item.empName+"'s "+MONTHS[item.month]+' timesheet for editing?'))return;
+  try{
+    await sb('/timesheets?id=eq.'+itemId,'PATCH',{status:'draft',updated_at:new Date().toISOString()});
+    item.status='draft';updateStats();applyFilters();closeDetail();
+    showToast('↩ Unlocked — '+item.empName+', '+MONTHS[item.month]);
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function exportAll(){
+  const rows=[['Employee','ID','Month','Date','Day','Arrival','Brk1S','Brk1E','Brk2S','Brk2E','Depart','WorkedHrs','RosteredHrs','Variation','Notes','Status']];
+  allItems.forEach(item=>{
+    item.rows.forEach(r=>{
+      const w=calcWorked(r),v=r.arrival?(parseFloat(w||0)-parseFloat(r.rostered||0)).toFixed(2):'';
+      rows.push([item.empName,item.empId,MONTHS[item.month],r.date,dayName(r.date),r.arrival,r.startBreak1,r.endBreak1,r.startBreak2,r.endBreak2,r.depart,w,r.rostered,v,r.notes,item.status]);
+    });
+  });
+  dl(rows,'SSO_Timebook_2026_All.csv');
+}
+
+function exportSingle(itemId){
+  const item=allItems.find(i=>i.id===itemId);if(!item)return;
+  const rows=[['Employee','ID','Month','Date','Day','Arrival','Brk1S','Brk1E','Brk2S','Brk2E','Depart','WorkedHrs','RosteredHrs','Variation','Notes']];
+  item.rows.forEach(r=>{
+    const w=calcWorked(r),v=r.arrival?(parseFloat(w||0)-parseFloat(r.rostered||0)).toFixed(2):'';
+    rows.push([item.empName,item.empId,MONTHS[item.month],r.date,dayName(r.date),r.arrival,r.startBreak1,r.endBreak1,r.startBreak2,r.endBreak2,r.depart,w,r.rostered,v,r.notes]);
+  });
+  dl(rows,'SSO_'+item.empId+'_'+MONTHS[item.month]+'_2026.csv');
+}
+
+function dl(rows,fn){
+  const csv=rows.map(r=>r.map(c=>'"'+(c||'').toString().replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=fn;a.click();
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+(function init(){
+  const sel=document.getElementById('f-month');
+  MONTHS.forEach((m,i)=>sel.innerHTML+='<option value="'+i+'">'+m+'</option>');
+  sel.value=new Date().getMonth();
+  loadAll();
+})();
+</script>
+</body>
+</html>
