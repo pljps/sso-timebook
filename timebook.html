@@ -1,3 +1,8 @@
+bash
+
+cat /mnt/user-data/outputs/timebook.html
+Output
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,7 +154,8 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
 <script>
 const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
-const RESEND_KEY   = 're_ZgLbWrys_NgztLeuCmFm6v2my4rj9t78B';
+const SP_SITE_URL  = 'https://schoolssaedu.sharepoint.com/sites/PLJPSSSOTIMEBOOKS';
+const SP_NOTIFY_LIST = 'Notifications';
 const MANAGER_EMAIL = 'kelsey.enright748@schools.sa.edu.au';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -192,17 +198,31 @@ async function saveSheet(empId,empName,mi,status,rows){
 
 async function sendEmail(empName,empId,monthName,worked,rostered,variation){
   try {
-    await fetch('https://api.resend.com/emails',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+RESEND_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({
-        from:'SSO Timebook <onboarding@resend.dev>',
-        to:[MANAGER_EMAIL],
-        subject:'⏳ Timesheet submitted: '+empName+' — '+monthName+' 2026',
-        html:'<p>Hi Kelsey,</p><p><strong>'+empName+'</strong> ('+empId+') has submitted their timesheet for <strong>'+monthName+' 2026</strong> for your approval.</p><table style="border-collapse:collapse;margin:16px 0"><tr><td style="padding:4px 12px 4px 0;color:#666">Hours worked:</td><td><strong>'+worked+'</strong></td></tr><tr><td style="padding:4px 12px 4px 0;color:#666">Hours rostered:</td><td><strong>'+rostered+'</strong></td></tr><tr><td style="padding:4px 12px 4px 0;color:#666">Variation:</td><td><strong>'+variation+'</strong></td></tr></table><p>Please log in to the manager dashboard to approve.</p><p style="color:#999;font-size:12px">SSO Timebook 2026 — automated notification</p>'
+    // Get SharePoint digest for authentication
+    const digestRes = await fetch(SP_SITE_URL + '/_api/contextinfo', {
+      method:'POST', credentials:'include',
+      headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose'}
+    });
+    const digestData = await digestRes.json();
+    const digest = digestData.d.GetContextWebInformation.FormDigestValue;
+
+    // Write to Notifications list — triggers Power Automate email
+    await fetch(SP_SITE_URL + `/_api/web/lists/getbytitle('${SP_NOTIFY_LIST}')/items`, {
+      method:'POST', credentials:'include',
+      headers:{
+        'Accept':'application/json;odata=verbose',
+        'Content-Type':'application/json;odata=verbose',
+        'X-RequestDigest': digest
+      },
+      body: JSON.stringify({
+        '__metadata':{'type':'SP.Data.NotificationsListItem'},
+        'Title': empId + '_' + monthName + '_2026',
+        'EmployeeName': empName,
+        'MonthName': monthName,
+        'Summary': 'Hours worked: ' + worked + ' | Rostered: ' + rostered + ' | Variation: ' + variation
       })
     });
-  } catch(e){ console.warn('Email failed (non-critical):',e); }
+  } catch(e){ console.warn('Notification failed (non-critical):',e); }
 }
 
 async function startApp(){
