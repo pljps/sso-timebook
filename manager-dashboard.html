@@ -1,3 +1,8 @@
+bash
+
+cat /mnt/user-data/outputs/manager-dashboard.html
+Output
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -164,21 +169,21 @@ function isWE(iso){const d=new Date(iso+'T00:00:00').getDay();return d===0||d===
 function renderTable(){
   const tbody=document.getElementById('tbody');
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty"><span>📭</span>No timesheets match your filters.</div></td></tr>';return;}
-  tbody.innerHTML=filtered.map(item=>{
+  tbody.innerHTML=filtered.map((item,idx)=>{
     const t=totals(item.rows);
     const upd=item.updated?new Date(item.updated).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'2-digit'}):'—';
     const vc=t.variation>=0?'pos':'neg',vs=(t.variation>=0?'+':'')+t.variation.toFixed(2);
     const pc=item.status==='approved'?'p-approved':item.status==='submitted'?'p-submitted':'p-draft';
     const pt=item.status==='approved'?'✓ Approved':item.status==='submitted'?'⏳ Submitted':'Draft';
     let ab='';
-    if(item.status==='submitted')ab='<button class="btn btn-review btn-sm" onclick="openDetail(\''+item.id+'\')">Review →</button>';
-    else if(item.rows.length)ab='<button class="btn btn-view btn-sm" onclick="openDetail(\''+item.id+'\')">View</button>';
+    if(item.status==='submitted')ab='<button class="btn btn-review btn-sm" onclick="openDetail('+idx+')">Review →</button>';
+    else if(item.rows.length)ab='<button class="btn btn-view btn-sm" onclick="openDetail('+idx+')">View</button>';
     return'<tr><td><strong>'+item.empName+'</strong></td><td style="color:var(--muted);font-size:12px">'+item.empId+'</td><td>'+MONTHS[item.month]+'</td><td>'+(t.worked>0?t.worked.toFixed(2):'—')+'</td><td>'+(t.rostered>0?t.rostered.toFixed(2):'—')+'</td><td class="'+(t.worked>0?vc:'')+'">'+(t.worked>0?vs:'—')+'</td><td><span class="pill '+pc+'">'+pt+'</span></td><td style="color:var(--muted);font-size:12px">'+upd+'</td><td>'+ab+'</td></tr>';
   }).join('');
 }
 
-function openDetail(itemId){
-  const item=allItems.find(i=>i.id===itemId);if(!item)return;
+function openDetail(idx){
+  const item=filtered[idx];if(!item)return;
   const t=totals(item.rows);
   const pc=item.status==='approved'?'p-approved':item.status==='submitted'?'p-submitted':'p-draft';
   const pt=item.status==='approved'?'✓ Approved':item.status==='submitted'?'⏳ Submitted':'Draft';
@@ -187,30 +192,30 @@ function openDetail(itemId){
     const ph=row.isPublicHoliday,we=isWE(row.date);
     return'<tr class="'+(ph?'ph-r':we?'we-r':'')+'"><td>'+dayName(row.date)+' '+parseInt(row.date.split('-')[2])+' '+(ph?'<span style="font-size:9px;background:var(--amber);color:white;padding:1px 4px;border-radius:3px">PH</span>':'')+'</td><td>'+(row.arrival||'—')+'</td><td>'+(row.startBreak1||'—')+'</td><td>'+(row.endBreak1||'—')+'</td><td>'+(row.startBreak2||'—')+'</td><td>'+(row.endBreak2||'—')+'</td><td>'+(row.depart||'—')+'</td><td><strong>'+(w||'—')+'</strong></td><td>'+(row.rostered||'—')+'</td><td class="'+(row.arrival?(v>=0?'pos':'neg'):'')+'">'+(row.arrival?(v>=0?'+':'')+v.toFixed(2):'—')+'</td><td style="font-size:11px;color:var(--muted)">'+(row.notes||'')+'</td></tr>';
   }).join('');
-  const approveBtn=item.status==='submitted'?'<button class="btn btn-primary" onclick="approveItem(\''+item.id+'\')">✓ Approve Timesheet</button>':'';
-  const unlockBtn=item.status==='approved'?'<button class="btn" style="border-color:var(--red);color:var(--red)" onclick="unlockItem(\''+item.id+'\')">↩ Unlock for editing</button>':'';
-  document.getElementById('detail-content').innerHTML='<div class="detail-top"><div><h2>'+item.empName+'</h2><p>'+item.empId+' &nbsp;·&nbsp; '+MONTHS[item.month]+' 2026 &nbsp;·&nbsp; <span class="pill '+pc+'">'+pt+'</span></p></div><button class="close-btn" onclick="closeDetail()">✕</button></div><div class="d-stats"><div class="ds"><span class="v">'+t.worked.toFixed(2)+'</span><span class="l">Hours worked</span></div><div class="ds"><span class="v">'+t.rostered.toFixed(2)+'</span><span class="l">Rostered</span></div><div class="ds"><span class="v '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="l">Variation</span></div></div><div class="d-tbl-wrap"><table class="d-tbl"><thead><tr><th>Date</th><th>Arrival</th><th>B1 S</th><th>B1 E</th><th>B2 S</th><th>B2 E</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div><div class="d-actions">'+approveBtn+unlockBtn+'<button class="btn btn-export" onclick="exportSingle(\''+item.id+'\')">⬇ Export CSV</button><button class="btn" onclick="window.print()">🖨 Print</button></div>';
+  const approveBtn=item.status==='submitted'?'<button class="btn btn-primary" onclick="approveItem('+idx+')">✓ Approve Timesheet</button>':'';
+  const unlockBtn=item.status==='approved'?'<button class="btn" style="border-color:var(--red);color:var(--red)" onclick="unlockItem('+idx+')">↩ Unlock for editing</button>':'';
+  document.getElementById('detail-content').innerHTML='<div class="detail-top"><div><h2>'+item.empName+'</h2><p>'+item.empId+' &nbsp;·&nbsp; '+MONTHS[item.month]+' 2026 &nbsp;·&nbsp; <span class="pill '+pc+'">'+pt+'</span></p></div><button class="close-btn" onclick="closeDetail()">✕</button></div><div class="d-stats"><div class="ds"><span class="v">'+t.worked.toFixed(2)+'</span><span class="l">Hours worked</span></div><div class="ds"><span class="v">'+t.rostered.toFixed(2)+'</span><span class="l">Rostered</span></div><div class="ds"><span class="v '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="l">Variation</span></div></div><div class="d-tbl-wrap"><table class="d-tbl"><thead><tr><th>Date</th><th>Arrival</th><th>B1 S</th><th>B1 E</th><th>B2 S</th><th>B2 E</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div><div class="d-actions">'+approveBtn+unlockBtn+'<button class="btn btn-export" onclick="exportSingle('+idx+')">⬇ Export CSV</button><button class="btn" onclick="window.print()">🖨 Print</button></div>';
   document.getElementById('overlay').classList.add('open');
 }
 
 function closeDetail(){document.getElementById('overlay').classList.remove('open');}
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeDetail();});
 
-async function approveItem(itemId){
-  const item=allItems.find(i=>i.id===itemId);
+async function approveItem(idx){
+  const item=filtered[idx];
   if(!item||!confirm('Approve '+item.empName+"'s timesheet for "+MONTHS[item.month]+' 2026?\n\nThis will lock it for the employee.'))return;
   try{
-    await sb('/timesheets?id=eq.'+itemId,'PATCH',{status:'approved',updated_at:new Date().toISOString()});
+    await sb('/timesheets?id=eq.'+item.id,'PATCH',{status:'approved',updated_at:new Date().toISOString()});
     item.status='approved';updateStats();applyFilters();closeDetail();
     showToast('✓ Approved — '+item.empName+', '+MONTHS[item.month]);
   }catch(e){alert('Error: '+e.message);}
 }
 
-async function unlockItem(itemId){
-  const item=allItems.find(i=>i.id===itemId);
+async function unlockItem(idx){
+  const item=filtered[idx];
   if(!item||!confirm('Unlock '+item.empName+"'s "+MONTHS[item.month]+' timesheet for editing?'))return;
   try{
-    await sb('/timesheets?id=eq.'+itemId,'PATCH',{status:'draft',updated_at:new Date().toISOString()});
+    await sb('/timesheets?id=eq.'+item.id,'PATCH',{status:'draft',updated_at:new Date().toISOString()});
     item.status='draft';updateStats();applyFilters();closeDetail();
     showToast('↩ Unlocked — '+item.empName+', '+MONTHS[item.month]);
   }catch(e){alert('Error: '+e.message);}
@@ -227,8 +232,8 @@ function exportAll(){
   dl(rows,'SSO_Timebook_2026_All.csv');
 }
 
-function exportSingle(itemId){
-  const item=allItems.find(i=>i.id===itemId);if(!item)return;
+function exportSingle(idx){
+  const item=filtered[idx];if(!item)return;
   const rows=[['Employee','ID','Month','Date','Day','Arrival','Brk1S','Brk1E','Brk2S','Brk2E','Depart','WorkedHrs','RosteredHrs','Variation','Notes']];
   item.rows.forEach(r=>{
     const w=calcWorked(r),v=r.arrival?(parseFloat(w||0)-parseFloat(r.rostered||0)).toFixed(2):'';
