@@ -40,7 +40,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .mtab { flex-shrink:0; font-size:12px; font-weight:600; padding:6px 11px; border-radius:8px 8px 0 0; cursor:pointer; border:none; background:transparent; color:var(--muted); border-bottom:2px solid transparent; }
 .mtab.active { color:var(--teal-dark); border-bottom-color:var(--teal); background:var(--teal-light); }
 .mtab.submitted { color:var(--amber); }
-.mtab.approved  { color:var(--green); }
+.mtab.approved { color:var(--green); }
 .summary-bar { display:flex; gap:8px; padding:10px 16px; background:var(--white); border-bottom:1px solid var(--border); }
 .stat { flex:1; text-align:center; }
 .stat-val { font-size:17px; font-weight:700; display:block; }
@@ -48,7 +48,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .pos { color:var(--green); } .neg { color:var(--red); }
 .s-banner { margin:12px 16px; padding:11px 14px; border-radius:var(--radius); font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
 .b-submitted { background:var(--amber-light); color:var(--amber); }
-.b-approved  { background:var(--green-light); color:var(--green); }
+.b-approved { background:var(--green-light); color:var(--green); }
 .tbl-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 table { width:100%; border-collapse:collapse; font-size:12px; min-width:600px; }
 thead th { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; padding:8px 4px 7px; background:#F9F8F5; border-bottom:1px solid var(--border); text-align:center; white-space:nowrap; }
@@ -146,6 +146,25 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
   </div>
 </div>
 
+<div class="modal-bg" id="modal-overtime">
+  <div class="modal">
+    <h2>⏰ Extra hours recorded</h2>
+    <p>You've worked more hours than rostered this month. Please provide approval details before submitting.</p>
+    <div style="text-align:left;margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Approved by</label>
+      <input type="text" id="ot-approver" placeholder="e.g. Kelsey Enright" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--gray-bg);color:var(--text)">
+    </div>
+    <div style="text-align:left;margin-bottom:20px">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Reason for extra hours</label>
+      <input type="text" id="ot-reason" placeholder="e.g. Student incident, staff meeting" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--gray-bg);color:var(--text)">
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-overtime')">Cancel</button>
+      <button class="btn btn-confirm" onclick="confirmOvertime()">Submit →</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
@@ -191,12 +210,14 @@ async function saveSheet(empId,empName,mi,status,rows){
   monthMeta[mi].status=status;
 }
 
-async function sendEmail(empName,empId,monthName,worked,rostered,variation){
+async function sendEmail(empName,empId,monthName,worked,rostered,variation,overtimeApprover,overtimeReason){
   try{
     const digestRes=await fetch(SP_SITE_URL+'/_api/contextinfo',{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose'}});
     const digestData=await digestRes.json();
     const digest=digestData.d.GetContextWebInformation.FormDigestValue;
-    await fetch(SP_SITE_URL+`/_api/web/lists/getbytitle('${SP_NOTIFY_LIST}')/items`,{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':digest},body:JSON.stringify({'__metadata':{'type':'SP.Data.NotificationsListItem'},'Title':empId+'_'+monthName+'_2026','EmployeeName':empName,'MonthName':monthName,'Summary':'Hours worked: '+worked+' | Rostered: '+rostered+' | Variation: '+variation})});
+    let summary='Hours worked: '+worked+' | Rostered: '+rostered+' | Variation: '+variation;
+    if(overtimeApprover)summary+=' | Extra hours approved by: '+overtimeApprover+' | Reason: '+overtimeReason;
+    await fetch(SP_SITE_URL+`/_api/web/lists/getbytitle('${SP_NOTIFY_LIST}')/items`,{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':digest},body:JSON.stringify({'__metadata':{'type':'SP.Data.NotificationsListItem'},'Title':empId+'_'+monthName+'_2026','EmployeeName':empName,'MonthName':monthName,'Summary':summary})});
   }catch(e){console.warn('Notification failed (non-critical):',e);}
 }
 
@@ -222,14 +243,11 @@ async function initApp(){
   document.getElementById('user-pill').textContent=currentUser.name;
   document.getElementById('sheet-area').innerHTML='<div class="loading"><div class="spinner"></div><span>Loading your timesheets…</span></div>';
   const existing=await loadSheets(currentUser.employeeId);
-
-  // Load roster data to pre-fill rostered hours
   let rosterMap={};
   try{
     const rosterData=await sb('/rosters?employee_id=eq.'+encodeURIComponent(currentUser.employeeId)+'&year=eq.2026&select=*');
     (rosterData||[]).forEach(r=>{rosterMap[r.month_index]=r;});
   }catch(e){console.warn('Could not load roster data:',e);}
-
   MONTHS.forEach((_,i)=>{
     const f=existing.find(x=>x.month_index===i);
     monthMeta[i]={status:f?f.status:'draft',spId:f?f.id:null};
@@ -327,12 +345,34 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 async function confirmSubmit(){
   closeModal('modal-submit');
+  const t=totals(monthRows[currentMonth]);
+  if(t.variation>0){
+    document.getElementById('ot-approver').value='';
+    document.getElementById('ot-reason').value='';
+    openModal('modal-overtime');
+    return;
+  }
+  await doSubmit(null,null);
+}
+
+async function confirmOvertime(){
+  const approver=document.getElementById('ot-approver').value.trim();
+  const reason=document.getElementById('ot-reason').value.trim();
+  if(!approver){document.getElementById('ot-approver').style.borderColor='var(--red)';return;}
+  if(!reason){document.getElementById('ot-reason').style.borderColor='var(--red)';return;}
+  closeModal('modal-overtime');
+  await doSubmit(approver,reason);
+}
+
+async function doSubmit(overtimeApprover,overtimeReason){
   const btn=document.querySelector('.btn-submit');
   if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   try{
-    await saveSheet(currentUser.employeeId,currentUser.name,currentMonth,'submitted',monthRows[currentMonth]);
-    const t=totals(monthRows[currentMonth]);
-    await sendEmail(currentUser.name,currentUser.employeeId,MONTHS[currentMonth],t.worked.toFixed(2),t.rostered.toFixed(2),(t.variation>=0?'+':'')+t.variation.toFixed(2));
+    const rows=monthRows[currentMonth];
+    if(overtimeApprover){rows._overtimeApprover=overtimeApprover;rows._overtimeReason=overtimeReason;}
+    await saveSheet(currentUser.employeeId,currentUser.name,currentMonth,'submitted',rows);
+    const t=totals(rows);
+    await sendEmail(currentUser.name,currentUser.employeeId,MONTHS[currentMonth],t.worked.toFixed(2),t.rostered.toFixed(2),(t.variation>=0?'+':'')+t.variation.toFixed(2),overtimeApprover,overtimeReason);
     renderTabs();renderSheet();
   }catch(e){
     alert('Error submitting — please try again.');
