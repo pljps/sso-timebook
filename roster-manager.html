@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSO Roster Manager</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --green:#3B6D11;--green-light:#EAF3DE;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --gray-bg:#F5F5F3;--border:#E2E0D9;
+  --text:#1A1A18;--muted:#6B6B66;
+  --white:#FFFFFF;--radius:10px;--radius-lg:14px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--gray-bg);color:var(--text);font-size:14px;padding-bottom:60px;}
+
+/* Header */
+.header{background:var(--white);border-bottom:1px solid var(--border);padding:14px 20px;position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.header h1{font-size:18px;font-weight:700;}
+.header p{font-size:12px;color:var(--muted);margin-top:2px;}
+
+/* Controls */
+.controls{padding:16px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:var(--white);border-bottom:1px solid var(--border);}
+.ctrl-group{display:flex;flex-direction:column;gap:4px;}
+.ctrl-group label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;}
+.ctrl-group select,.ctrl-group input{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--white);color:var(--text);font-size:13px;min-width:160px;}
+.ctrl-group select:focus,.ctrl-group input:focus{outline:none;border-color:var(--teal);}
+
+/* Buttons */
+.btn{padding:9px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;border:1px solid var(--border);cursor:pointer;background:var(--white);color:var(--text);}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--teal);color:white;border-color:var(--teal);}
+.btn-copy{background:var(--teal-light);color:var(--teal-dark);border-color:var(--teal);}
+.btn-add{background:var(--green-light);color:var(--green);border-color:var(--green);}
+.btn-danger{background:var(--red-light);color:var(--red);border-color:var(--red);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+
+/* Main layout */
+.main{max-width:1000px;margin:0 auto;padding:16px 20px;}
+
+/* SSO cards */
+.sso-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.sso-header h2{font-size:15px;font-weight:700;}
+.sso-count{font-size:12px;color:var(--muted);}
+
+.sso-card{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+.sso-card-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;gap:8px;flex-wrap:wrap;}
+.sso-card-header:hover{background:#FAFAF8;}
+.sso-name{font-size:14px;font-weight:700;}
+.sso-id{font-size:11px;color:var(--muted);margin-top:2px;}
+.sso-summary{font-size:12px;color:var(--muted);}
+.sso-chevron{font-size:16px;color:var(--muted);transition:transform 0.2s;flex-shrink:0;}
+.sso-card.open .sso-chevron{transform:rotate(180deg);}
+.sso-body{display:none;border-top:1px solid var(--border);}
+.sso-card.open .sso-body{display:block;}
+
+/* Roster table */
+.roster-tbl-wrap{overflow-x:auto;}
+.roster-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:500px;}
+.roster-tbl thead th{background:#F9F8F5;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;}
+.roster-tbl thead th:first-child{text-align:left;padding-left:16px;}
+.roster-tbl tbody tr{border-bottom:1px solid var(--border);}
+.roster-tbl tbody tr:hover{background:#FAFAF8;}
+.roster-tbl tbody tr.ph{background:#FFF8EC;}
+.roster-tbl tbody tr.we{background:#FAFAF8;opacity:0.7;}
+.roster-tbl tbody td{padding:4px 6px;text-align:center;vertical-align:middle;}
+.roster-tbl tbody td:first-child{padding-left:16px;text-align:left;}
+.date-cell{display:flex;flex-direction:column;line-height:1.3;}
+.dn{font-size:10px;color:var(--muted);}
+.dd{font-size:12px;font-weight:700;}
+.ph-tag{font-size:9px;background:var(--amber);color:white;padding:1px 4px;border-radius:3px;margin-top:1px;display:inline-block;}
+input.hrs{width:64px;font-size:12px;padding:5px 4px;border:1px solid var(--border);border-radius:6px;text-align:center;background:var(--white);color:var(--text);}
+input.hrs:focus{outline:none;border-color:var(--teal);background:#F0FAF6;}
+.total-cell{font-size:12px;font-weight:700;color:var(--teal-dark);}
+
+/* Card footer */
+.card-footer{padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);background:#FAFAF8;}
+.save-status{font-size:12px;font-weight:600;padding:6px 12px;border-radius:100px;opacity:0;transition:opacity 0.3s;}
+.save-status.show{opacity:1;}
+.save-status.ok{background:var(--green-light);color:var(--green);}
+.save-status.err{background:var(--red-light);color:var(--red);}
+
+/* Add SSO form */
+.add-sso-panel{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);padding:16px;margin-bottom:12px;display:none;}
+.add-sso-panel.open{display:block;}
+.add-sso-panel h3{font-size:14px;font-weight:700;margin-bottom:12px;}
+.add-row{display:flex;gap:10px;flex-wrap:wrap;}
+.add-row input{flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--gray-bg);color:var(--text);}
+.add-row input:focus{outline:none;border-color:var(--teal);background:var(--white);}
+
+/* Fill tools */
+.fill-tools{padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);background:#F9F8F5;}
+.fill-tools label{font-size:12px;color:var(--muted);font-weight:600;}
+.fill-tools input{width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;}
+
+/* Loading */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:14px;color:var(--muted);}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.empty-state{text-align:center;padding:40px;color:var(--muted);}
+.empty-state span{font-size:32px;display:block;margin-bottom:10px;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:white;padding:10px 20px;border-radius:100px;font-size:13px;font-weight:600;z-index:500;opacity:0;pointer-events:none;transition:opacity 0.3s;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📅 SSO Roster Manager</h1>
+    <p id="hdr-sub">Manage rostered hours for each SSO</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-add" onclick="toggleAddPanel()">+ Add SSO</button>
+    <button class="btn btn-primary" onclick="saveAll()">💾 Save All</button>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Month</label>
+    <select id="month-sel" onchange="loadRosters()">
+      <option value="0">January</option><option value="1">February</option>
+      <option value="2">March</option><option value="3">April</option>
+      <option value="4">May</option><option value="5">June</option>
+      <option value="6">July</option><option value="7">August</option>
+      <option value="8">September</option><option value="9">October</option>
+      <option value="10">November</option><option value="11">December</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Year</label>
+    <select id="year-sel" onchange="loadRosters()">
+      <option value="2026">2026</option>
+    </select>
+  </div>
+  <button class="btn btn-copy" onclick="copyFromLastMonth()" title="Copy all rosters from the previous month as a starting point">⬅ Copy from last month</button>
+</div>
+
+<!-- Add SSO panel -->
+<div class="main">
+  <div class="add-sso-panel" id="add-panel">
+    <h3>Add New SSO</h3>
+    <div class="add-row">
+      <input type="text" id="new-name" placeholder="Full name (e.g. Sarah Johnson)">
+      <input type="text" id="new-id" placeholder="Employee ID (e.g. SSO-001)">
+      <button class="btn btn-add" onclick="addSSO()">Add</button>
+      <button class="btn" onclick="toggleAddPanel()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="roster-area">
+    <div class="loading"><div class="spinner"></div><span>Loading rosters…</span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PUBLIC_HOLIDAYS = {
+  '2026-01-01':"New Year's Day",'2026-01-26':'Australia Day',
+  '2026-04-03':'Good Friday','2026-04-06':'Easter Monday',
+  '2026-04-25':'ANZAC Day','2026-06-08':"King's Birthday",
+  '2026-12-25':'Christmas Day','2026-12-28':'Proclamation Day (sub)'
+};
+
+let employees = [];   // [{id, employee_id, name}]
+let rosters   = {};   // keyed by employee_id: [{ date, hours }]
+let timesheets = {};  // existing timesheets keyed by employee_id
+
+async function sb(path, method='GET', body=null) {
+  const opts = {method, headers: {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(SUPABASE_URL+'/rest/v1'+path, opts);
+  if(!r.ok) throw new Error(r.status+': '+await r.text());
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+
+function getMonth() { return parseInt(document.getElementById('month-sel').value); }
+function getYear()  { return parseInt(document.getElementById('year-sel').value); }
+
+function getDayName(iso) { return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(iso+'T00:00:00').getDay()]; }
+function isWeekend(iso)  { const d=new Date(iso+'T00:00:00').getDay(); return d===0||d===6; }
+
+function buildDays(mi, year) {
+  const days = new Date(year, mi+1, 0).getDate();
+  return Array.from({length:days}, (_,i) => {
+    const d = i+1;
+    return `${year}-${String(mi+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  });
+}
+
+async function init() {
+  document.getElementById('month-sel').value = new Date().getMonth();
+  try {
+    const emps = await sb('/employees?select=*&order=name.asc');
+    employees = emps || [];
+    await loadRosters();
+  } catch(e) {
+    document.getElementById('roster-area').innerHTML = '<div class="empty-state"><span>⚠️</span>Could not connect to Supabase. Check your internet connection.</div>';
+    console.error(e);
+  }
+}
+
+async function loadRosters() {
+  const mi = getMonth(), year = getYear();
+  document.getElementById('roster-area').innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading…</span></div>';
+  document.getElementById('hdr-sub').textContent = `${MONTHS[mi]} ${year} — ${employees.length} SSOs`;
+
+  try {
+    // Load existing timesheets for this month to get current rostered hours
+    const sheets = await sb(`/timesheets?month_index=eq.${mi}&year=eq.${year}&select=*`);
+    timesheets = {};
+    (sheets||[]).forEach(s => { timesheets[s.employee_id] = s; });
+
+    // Load roster data
+    const rosterData = await sb(`/rosters?month_index=eq.${mi}&year=eq.${year}&select=*`);
+    rosters = {};
+    (rosterData||[]).forEach(r => { rosters[r.employee_id] = { id: r.id, days: r.days }; });
+
+    renderRosters();
+  } catch(e) {
+    // rosters table might not exist yet
+    if(e.message.includes('42P01') || e.message.includes('does not exist')) {
+      await createRostersTable();
+      rosters = {};
+      renderRosters();
+    } else {
+      console.error(e);
+      document.getElementById('roster-area').innerHTML = '<div class="empty-state"><span>⚠️</span>Error loading data: '+e.message+'</div>';
+    }
+  }
+}
+
+async function createRostersTable() {
+  // Table doesn't exist — we'll just use the rosters table once created via Supabase UI
+  // For now show a helpful message
+  showToast('Please create the Rosters table in Supabase first — see instructions below');
+}
+
+function renderRosters() {
+  const mi = getMonth(), year = getYear();
+  const days = buildDays(mi, year);
+  const area = document.getElementById('roster-area');
+
+  if(!employees.length) {
+    area.innerHTML = '<div class="empty-state"><span>👥</span>No SSOs yet — click "+ Add SSO" to get started.</div>';
+    return;
+  }
+
+  area.innerHTML = employees.map((emp, ei) => {
+    const roster = rosters[emp.employee_id];
+    const dayMap = {};
+    if(roster && roster.days) {
+      roster.days.forEach(d => { dayMap[d.date] = d.hours; });
+    }
+
+    // If no roster, check if timesheet has rostered hours
+    const ts = timesheets[emp.employee_id];
+    if(ts && ts.rows && !roster) {
+      const rows = typeof ts.rows === 'string' ? JSON.parse(ts.rows) : ts.rows;
+      rows.forEach(r => { if(r.rostered) dayMap[r.date] = r.rostered; });
+    }
+
+    const total = days.reduce((s,d) => s + (parseFloat(dayMap[d])||0), 0);
+    const wdTotal = days.filter(d=>!isWeekend(d)&&!PUBLIC_HOLIDAYS[d]).reduce((s,d) => s + (parseFloat(dayMap[d])||0), 0);
+
+    const rowsHtml = days.map(iso => {
+      const ph = PUBLIC_HOLIDAYS[iso], we = isWeekend(iso);
+      const val = dayMap[iso] || '';
+      return `<tr class="${ph?'ph':we?'we':''}">
+        <td><div class="date-cell">
+          <span class="dn">${getDayName(iso)}</span>
+          <span class="dd">${parseInt(iso.split('-')[2])}</span>
+          ${ph?`<span class="ph-tag">PH</span>`:''}
+        </div></td>
+        <td><input class="hrs" type="text" value="${val}" 
+          placeholder="${ph?'PH':we?'—':'0.00'}"
+          ${ph||we?'style="opacity:0.5"':''}
+          oninput="updateRoster('${emp.employee_id}','${iso}',this.value,${ei})"
+          id="r-${ei}-${iso}"></td>
+        <td style="font-size:11px;color:var(--muted)">${ph?PUBLIC_HOLIDAYS[iso]:''}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="sso-card" id="card-${ei}">
+      <div class="sso-card-header" onclick="toggleCard(${ei})">
+        <div>
+          <div class="sso-name">${emp.name}</div>
+          <div class="sso-id">${emp.employee_id}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="sso-summary">Total: <strong>${total.toFixed(2)} hrs</strong> &nbsp;|&nbsp; Weekdays: <strong>${wdTotal.toFixed(2)} hrs</strong></span>
+          <span class="sso-chevron">▼</span>
+        </div>
+      </div>
+      <div class="sso-body">
+        <div class="fill-tools">
+          <label>Quick fill weekdays:</label>
+          <input type="text" id="fill-${ei}" placeholder="7.60">
+          <button class="btn btn-sm btn-copy" onclick="fillWeekdays('${emp.employee_id}',${ei})">Apply to all weekdays</button>
+          <button class="btn btn-sm" onclick="clearRoster('${emp.employee_id}',${ei})">Clear all</button>
+        </div>
+        <div class="roster-tbl-wrap">
+          <table class="roster-tbl">
+            <thead><tr><th>Date</th><th>Rostered Hrs</th><th>Notes</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-primary btn-sm" onclick="saveRoster('${emp.employee_id}',${ei})">💾 Save ${emp.name.split(' ')[0]}'s Roster</button>
+          <button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="removeSSO('${emp.employee_id}','${emp.name}')">Remove SSO</button>
+          <span class="save-status" id="status-${ei}"></span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(ei) {
+  const card = document.getElementById(`card-${ei}`);
+  card.classList.toggle('open');
+}
+
+function updateRoster(empId, date, value, ei) {
+  if(!rosters[empId]) rosters[empId] = { id: null, days: [] };
+  const days = rosters[empId].days;
+  const existing = days.find(d => d.date === date);
+  if(existing) existing.hours = value;
+  else days.push({ date, hours: value });
+  // Update total in header
+  updateCardSummary(empId, ei);
+}
+
+function updateCardSummary(empId, ei) {
+  const mi = getMonth(), year = getYear();
+  const days = buildDays(mi, year);
+  const roster = rosters[empId];
+  if(!roster) return;
+  const dayMap = {};
+  roster.days.forEach(d => { dayMap[d.date] = d.hours; });
+  const total = days.reduce((s,d) => s+(parseFloat(dayMap[d])||0), 0);
+  const wdTotal = days.filter(d=>!isWeekend(d)&&!PUBLIC_HOLIDAYS[d]).reduce((s,d) => s+(parseFloat(dayMap[d])||0), 0);
+  const card = document.getElementById(`card-${ei}`);
+  if(card) {
+    const summary = card.querySelector('.sso-summary');
+    if(summary) summary.innerHTML = `Total: <strong>${total.toFixed(2)} hrs</strong> &nbsp;|&nbsp; Weekdays: <strong>${wdTotal.toFixed(2)} hrs</strong>`;
+  }
+}
+
+function fillWeekdays(empId, ei) {
+  const val = document.getElementById(`fill-${ei}`).value.trim();
+  if(!val) return;
+  const mi = getMonth(), year = getYear();
+  const days = buildDays(mi, year);
+  days.forEach(iso => {
+    if(!isWeekend(iso) && !PUBLIC_HOLIDAYS[iso]) {
+      document.getElementById(`r-${ei}-${iso}`).value = val;
+      updateRoster(empId, iso, val, ei);
+    }
+  });
+}
+
+function clearRoster(empId, ei) {
+  if(!confirm('Clear all rostered hours for this SSO?')) return;
+  const mi = getMonth(), year = getYear();
+  const days = buildDays(mi, year);
+  days.forEach(iso => {
+    const el = document.getElementById(`r-${ei}-${iso}`);
+    if(el) el.value = '';
+    updateRoster(empId, iso, '', ei);
+  });
+}
+
+async function saveRoster(empId, ei) {
+  const mi = getMonth(), year = getYear();
+  const roster = rosters[empId] || { id: null, days: [] };
+  const status = document.getElementById(`status-${ei}`);
+
+  try {
+    // Save roster record
+    if(roster.id) {
+      await sb(`/rosters?id=eq.${roster.id}`, 'PATCH', {
+        days: roster.days,
+        updated_at: new Date().toISOString()
+      });
+    } else {
+      const res = await sb('/rosters', 'POST', {
+        employee_id: empId,
+        month_index: mi,
+        year: year,
+        days: roster.days,
+        updated_at: new Date().toISOString()
+      });
+      if(res && res[0]) rosters[empId].id = res[0].id;
+    }
+
+    // Also update the rostered hours in existing timesheet rows if timesheet exists
+    const ts = timesheets[empId];
+    if(ts && ts.rows) {
+      const rows = typeof ts.rows === 'string' ? JSON.parse(ts.rows) : ts.rows;
+      const dayMap = {};
+      roster.days.forEach(d => { dayMap[d.date] = d.hours; });
+      rows.forEach(row => {
+        if(dayMap[row.date] !== undefined) row.rostered = dayMap[row.date];
+      });
+      await sb(`/timesheets?id=eq.${ts.id}`, 'PATCH', {
+        rows: rows,
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    status.textContent = '✓ Saved';
+    status.className = 'save-status ok show';
+    setTimeout(() => status.classList.remove('show'), 3000);
+    showToast(`✓ Roster saved for ${employees.find(e=>e.employee_id===empId)?.name}`);
+  } catch(e) {
+    status.textContent = '⚠ Save failed';
+    status.className = 'save-status err show';
+    setTimeout(() => status.classList.remove('show'), 4000);
+    console.error(e);
+    alert('Save failed: '+e.message);
+  }
+}
+
+async function saveAll() {
+  const btns = document.querySelectorAll('.sso-card');
+  let saved = 0;
+  for(let ei = 0; ei < employees.length; ei++) {
+    const emp = employees[ei];
+    try {
+      await saveRoster(emp.employee_id, ei);
+      saved++;
+    } catch(e) { console.error(e); }
+  }
+  showToast(`✓ Saved rosters for ${saved} SSOs`);
+}
+
+async function copyFromLastMonth() {
+  const mi = getMonth(), year = getYear();
+  const prevMi = mi === 0 ? 11 : mi - 1;
+  const prevYear = mi === 0 ? year - 1 : year;
+
+  if(!confirm(`Copy all rosters from ${MONTHS[prevMi]} ${prevYear} to ${MONTHS[mi]} ${year}?\n\nThis will overwrite any existing data for ${MONTHS[mi]}.`)) return;
+
+  try {
+    const prevRosters = await sb(`/rosters?month_index=eq.${prevMi}&year=eq.${prevYear}&select=*`);
+    if(!prevRosters || !prevRosters.length) {
+      alert(`No rosters found for ${MONTHS[prevMi]} ${prevYear}.`);
+      return;
+    }
+
+    const days = buildDays(mi, year);
+
+    for(const pr of prevRosters) {
+      const prevDays = pr.days || [];
+      // Map hours by day-of-month
+      const byDayNum = {};
+      prevDays.forEach(d => { byDayNum[parseInt(d.date.split('-')[2])] = d.hours; });
+
+      // Build new days array for this month
+      const newDays = days.map(iso => ({
+        date: iso,
+        hours: byDayNum[parseInt(iso.split('-')[2])] || ''
+      }));
+
+      if(!rosters[pr.employee_id]) rosters[pr.employee_id] = { id: null, days: newDays };
+      else rosters[pr.employee_id].days = newDays;
+    }
+
+    renderRosters();
+    showToast(`Copied rosters from ${MONTHS[prevMi]} — click Save All to confirm`);
+  } catch(e) {
+    console.error(e);
+    alert('Error copying rosters: '+e.message);
+  }
+}
+
+function toggleAddPanel() {
+  document.getElementById('add-panel').classList.toggle('open');
+}
+
+async function addSSO() {
+  const name = document.getElementById('new-name').value.trim();
+  const id   = document.getElementById('new-id').value.trim().toUpperCase();
+  if(!name) { alert('Please enter a name.'); return; }
+  if(!id)   { alert('Please enter an Employee ID.'); return; }
+  if(employees.find(e => e.employee_id === id)) { alert('Employee ID already exists.'); return; }
+
+  try {
+    const res = await sb('/employees', 'POST', { employee_id: id, name: name, pin: '0000' });
+    if(res && res[0]) {
+      employees.push(res[0]);
+      employees.sort((a,b) => a.name.localeCompare(b.name));
+    }
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-id').value = '';
+    document.getElementById('add-panel').classList.remove('open');
+    renderRosters();
+    showToast(`✓ Added ${name}`);
+  } catch(e) {
+    alert('Error adding SSO: '+e.message);
+    console.error(e);
+  }
+}
+
+async function removeSSO(empId, empName) {
+  if(!confirm(`Remove ${empName} from the system?\n\nThis will NOT delete their timesheet data.`)) return;
+  try {
+    await sb(`/employees?employee_id=eq.${encodeURIComponent(empId)}`, 'DELETE');
+    employees = employees.filter(e => e.employee_id !== empId);
+    renderRosters();
+    showToast(`Removed ${empName}`);
+  } catch(e) {
+    alert('Error: '+e.message);
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Delete method for Supabase
+async function sbDel(path) {
+  const r = await fetch(SUPABASE_URL+'/rest/v1'+path, {
+    method:'DELETE',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}
+  });
+  if(!r.ok) throw new Error(r.status+': '+await r.text());
+}
+
+init();
+</script>
+</body>
+</html>
