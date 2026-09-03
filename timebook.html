@@ -146,10 +146,10 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
   </div>
 </div>
 
-<div class="modal-bg" id="modal-overtime">
+<div class="modal-bg" id="modal-overtime-day">
   <div class="modal">
-    <h2>⏰ Extra hours recorded</h2>
-    <p>You've worked more hours than rostered this month. Please provide approval details before submitting.</p>
+    <h2>⏰ Extra hours on this day</h2>
+    <p>You've recorded more hours than rostered for this day. Please provide approval details.</p>
     <div style="text-align:left;margin-bottom:14px">
       <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Approved by</label>
       <input type="text" id="ot-approver" placeholder="e.g. Kelsey Enright" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--gray-bg);color:var(--text)">
@@ -159,8 +159,8 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
       <input type="text" id="ot-reason" placeholder="e.g. Student incident, staff meeting" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--gray-bg);color:var(--text)">
     </div>
     <div class="modal-btns">
-      <button class="btn" onclick="closeModal('modal-overtime')">Cancel</button>
-      <button class="btn btn-confirm" onclick="confirmOvertime()">Submit →</button>
+      <button class="btn" onclick="closeModal('modal-overtime-day')">Cancel</button>
+      <button class="btn btn-confirm" onclick="saveDayOvertime()">Save</button>
     </div>
   </div>
 </div>
@@ -210,13 +210,13 @@ async function saveSheet(empId,empName,mi,status,rows){
   monthMeta[mi].status=status;
 }
 
-async function sendEmail(empName,empId,monthName,worked,rostered,variation,overtimeApprover,overtimeReason){
+async function sendEmail(empName,empId,monthName,worked,rostered,variation,otSummary){
   try{
     const digestRes=await fetch(SP_SITE_URL+'/_api/contextinfo',{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose'}});
     const digestData=await digestRes.json();
     const digest=digestData.d.GetContextWebInformation.FormDigestValue;
     let summary='Hours worked: '+worked+' | Rostered: '+rostered+' | Variation: '+variation;
-    if(overtimeApprover)summary+=' | Extra hours approved by: '+overtimeApprover+' | Reason: '+overtimeReason;
+    if(otSummary)summary+=' | Overtime: '+otSummary;
     await fetch(SP_SITE_URL+`/_api/web/lists/getbytitle('${SP_NOTIFY_LIST}')/items`,{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':digest},body:JSON.stringify({'__metadata':{'type':'SP.Data.NotificationsListItem'},'Title':empId+'_'+monthName+'_2026','EmployeeName':empName,'MonthName':monthName,'Summary':summary})});
   }catch(e){console.warn('Notification failed (non-critical):',e);}
 }
@@ -302,7 +302,8 @@ function renderSheet(){
   html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>';
   rows.forEach((row,idx)=>{
     const ph=row.isPublicHoliday,we=isWE(row.date),w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
-    html+='<tr class="'+(ph?'ph':we?'we':'')+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?(vn>=0?'+':'')+v:'—')+'</td><td><input class="ti nts" type="text" value="'+(row.notes||'')+'" '+dis+' placeholder="'+(row.phName||'')+'" oninput="cell('+idx+',\'notes\',this.value)"></td></tr>';
+    const otIcon=row._overtimeApprover?'✓ ':'';
+    html+='<tr class="'+(ph?'ph':we?'we':'')+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?otIcon+(vn>=0?'+':'')+v:'—')+'</td><td><input class="ti nts" type="text" value="'+(row.notes||'')+'" '+dis+' placeholder="'+(row.phName||'')+'" oninput="cell('+idx+',\'notes\',this.value)"></td></tr>';
   });
   html+='</tbody></table></div>';
   document.getElementById('sheet-area').innerHTML=html;
@@ -320,11 +321,23 @@ function cell(idx,field,value){
   const row=monthRows[currentMonth][idx],w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
   const wEl=document.getElementById('w-'+idx),vEl=document.getElementById('v-'+idx);
   if(wEl)wEl.textContent=w||'—';
-  if(vEl){vEl.textContent=v!==''?(vn>=0?'+':'')+v:'—';vEl.className='calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'');}
+  if(vEl){
+    const otIcon=row._overtimeApprover?'✓ ':'';
+    vEl.textContent=v!==''?otIcon+(vn>=0?'+':'')+v:'—';
+    vEl.className='calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'');
+  }
   const t=totals(monthRows[currentMonth]),sv=document.querySelectorAll('.stat-val');
   if(sv[0])sv[0].textContent=t.worked.toFixed(2);
   if(sv[1])sv[1].textContent=t.rostered.toFixed(2);
   if(sv[2]){sv[2].textContent=(t.variation>=0?'+':'')+t.variation.toFixed(2);sv[2].className='stat-val '+(t.variation>=0?'pos':'neg');}
+  if(!isNaN(vn)&&vn>0&&(field==='depart'||field==='arrival'||field==='startBreak1'||field==='endBreak1'||field==='startBreak2'||field==='endBreak2')&&w!==''){
+    if(!row._overtimeApprover){
+      document.getElementById('ot-approver').value='';
+      document.getElementById('ot-reason').value='';
+      document.getElementById('ot-approver').dataset.rowIdx=idx;
+      openModal('modal-overtime-day');
+    }
+  }
   clearTimeout(saveTimer);saveTimer=setTimeout(autoSave,2000);
 }
 
@@ -343,36 +356,43 @@ async function autoSave(){
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-async function confirmSubmit(){
-  closeModal('modal-submit');
-  const t=totals(monthRows[currentMonth]);
-  if(t.variation>0){
-    document.getElementById('ot-approver').value='';
-    document.getElementById('ot-reason').value='';
-    openModal('modal-overtime');
-    return;
-  }
-  await doSubmit(null,null);
-}
-
-async function confirmOvertime(){
+function saveDayOvertime(){
   const approver=document.getElementById('ot-approver').value.trim();
   const reason=document.getElementById('ot-reason').value.trim();
   if(!approver){document.getElementById('ot-approver').style.borderColor='var(--red)';return;}
   if(!reason){document.getElementById('ot-reason').style.borderColor='var(--red)';return;}
-  closeModal('modal-overtime');
-  await doSubmit(approver,reason);
+  const idx=parseInt(document.getElementById('ot-approver').dataset.rowIdx);
+  monthRows[currentMonth][idx]._overtimeApprover=approver;
+  monthRows[currentMonth][idx]._overtimeReason=reason;
+  closeModal('modal-overtime-day');
+  clearTimeout(saveTimer);saveTimer=setTimeout(autoSave,2000);
 }
 
-async function doSubmit(overtimeApprover,overtimeReason){
+async function confirmSubmit(){
+  closeModal('modal-submit');
+  const unapproved=monthRows[currentMonth].filter(r=>{
+    const v=parseFloat(calcVar(r));
+    return !isNaN(v)&&v>0&&!r._overtimeApprover;
+  });
+  if(unapproved.length>0){
+    alert(unapproved.length+' day(s) have extra hours without approval recorded. Please enter the approval details for those days first.');
+    return;
+  }
+  await doSubmit();
+}
+
+async function confirmOvertime(){closeModal('modal-overtime-day');}
+
+async function doSubmit(){
   const btn=document.querySelector('.btn-submit');
   if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   try{
     const rows=monthRows[currentMonth];
-    if(overtimeApprover){rows._overtimeApprover=overtimeApprover;rows._overtimeReason=overtimeReason;}
     await saveSheet(currentUser.employeeId,currentUser.name,currentMonth,'submitted',rows);
     const t=totals(rows);
-    await sendEmail(currentUser.name,currentUser.employeeId,MONTHS[currentMonth],t.worked.toFixed(2),t.rostered.toFixed(2),(t.variation>=0?'+':'')+t.variation.toFixed(2),overtimeApprover,overtimeReason);
+    const otDays=rows.filter(r=>r._overtimeApprover);
+    const otSummary=otDays.length?otDays.map(r=>r.date+': approved by '+r._overtimeApprover+' ('+r._overtimeReason+')').join('; '):'';
+    await sendEmail(currentUser.name,currentUser.employeeId,MONTHS[currentMonth],t.worked.toFixed(2),t.rostered.toFixed(2),(t.variation>=0?'+':'')+t.variation.toFixed(2),otSummary);
     renderTabs();renderSheet();
   }catch(e){
     alert('Error submitting — please try again.');
