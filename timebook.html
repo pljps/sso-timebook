@@ -149,7 +149,7 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
 <script>
 const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
-const SP_SITE_URL  = 'https://schoolssaedu.sharepoint.com/sites/PLJPSSSOTIMEBOOKS';
+const SP_SITE_URL = 'https://schoolssaedu.sharepoint.com/sites/PLJPSSSOTIMEBOOKS';
 const SP_NOTIFY_LIST = 'Notifications';
 const MANAGER_EMAIL = 'kelsey.enright748@schools.sa.edu.au';
 
@@ -161,18 +161,18 @@ const PUBLIC_HOLIDAYS = {
   '2026-12-25':'Christmas Day','2026-12-28':'Proclamation Day (sub)'
 };
 
-let currentUser = null, currentMonth = new Date().getMonth();
-let monthMeta = {}, monthRows = {}, saveTimer = null, isSaving = false;
+let currentUser=null,currentMonth=new Date().getMonth();
+let monthMeta={},monthRows={},saveTimer=null,isSaving=false;
 
-function saveLocal(n,i){ try{localStorage.setItem('sso_tb',JSON.stringify({name:n,employeeId:i}));}catch(e){} }
-function loadLocal(){ try{const u=localStorage.getItem('sso_tb');return u?JSON.parse(u):null;}catch(e){return null;} }
+function saveLocal(n,i){try{localStorage.setItem('sso_tb',JSON.stringify({name:n,employeeId:i}));}catch(e){}}
+function loadLocal(){try{const u=localStorage.getItem('sso_tb');return u?JSON.parse(u):null;}catch(e){return null;}}
 
-async function sb(path, method='GET', body=null){
+async function sb(path,method='GET',body=null){
   const opts={method,headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};
-  if(body) opts.body=JSON.stringify(body);
+  if(body)opts.body=JSON.stringify(body);
   const r=await fetch(SUPABASE_URL+'/rest/v1'+path,opts);
-  if(!r.ok){ const t=await r.text(); throw new Error(r.status+': '+t); }
-  const t=await r.text(); return t?JSON.parse(t):null;
+  if(!r.ok){const t=await r.text();throw new Error(r.status+': '+t);}
+  const t=await r.text();return t?JSON.parse(t):null;
 }
 
 async function loadSheets(empId){
@@ -184,40 +184,20 @@ async function saveSheet(empId,empName,mi,status,rows){
   const meta=monthMeta[mi];
   if(meta.spId){
     await sb('/timesheets?id=eq.'+meta.spId,'PATCH',{status,rows,updated_at:new Date().toISOString()});
-  } else {
+  }else{
     const res=await sb('/timesheets','POST',{employee_id:empId,employee_name:empName,month_index:mi,year:2026,status,rows,updated_at:new Date().toISOString()});
-    if(res&&res[0]) monthMeta[mi].spId=res[0].id;
+    if(res&&res[0])monthMeta[mi].spId=res[0].id;
   }
   monthMeta[mi].status=status;
 }
 
 async function sendEmail(empName,empId,monthName,worked,rostered,variation){
-  try {
-    // Get SharePoint digest for authentication
-    const digestRes = await fetch(SP_SITE_URL + '/_api/contextinfo', {
-      method:'POST', credentials:'include',
-      headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose'}
-    });
-    const digestData = await digestRes.json();
-    const digest = digestData.d.GetContextWebInformation.FormDigestValue;
-
-    // Write to Notifications list — triggers Power Automate email
-    await fetch(SP_SITE_URL + `/_api/web/lists/getbytitle('${SP_NOTIFY_LIST}')/items`, {
-      method:'POST', credentials:'include',
-      headers:{
-        'Accept':'application/json;odata=verbose',
-        'Content-Type':'application/json;odata=verbose',
-        'X-RequestDigest': digest
-      },
-      body: JSON.stringify({
-        '__metadata':{'type':'SP.Data.NotificationsListItem'},
-        'Title': empId + '_' + monthName + '_2026',
-        'EmployeeName': empName,
-        'MonthName': monthName,
-        'Summary': 'Hours worked: ' + worked + ' | Rostered: ' + rostered + ' | Variation: ' + variation
-      })
-    });
-  } catch(e){ console.warn('Notification failed (non-critical):',e); }
+  try{
+    const digestRes=await fetch(SP_SITE_URL+'/_api/contextinfo',{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose'}});
+    const digestData=await digestRes.json();
+    const digest=digestData.d.GetContextWebInformation.FormDigestValue;
+    await fetch(SP_SITE_URL+`/_api/web/lists/getbytitle('${SP_NOTIFY_LIST}')/items`,{method:'POST',credentials:'include',headers:{'Accept':'application/json;odata=verbose','Content-Type':'application/json;odata=verbose','X-RequestDigest':digest},body:JSON.stringify({'__metadata':{'type':'SP.Data.NotificationsListItem'},'Title':empId+'_'+monthName+'_2026','EmployeeName':empName,'MonthName':monthName,'Summary':'Hours worked: '+worked+' | Rostered: '+rostered+' | Variation: '+variation})});
+  }catch(e){console.warn('Notification failed (non-critical):',e);}
 }
 
 async function startApp(){
@@ -230,14 +210,8 @@ async function startApp(){
   if(!id){err.textContent='Please enter your Employee ID.';return;}
   btn.textContent='Loading…';btn.disabled=true;
   currentUser={name,employeeId:id};
-  try{
-    await initApp();
-    saveLocal(name,id);
-  }catch(e){
-    console.error(e);
-    err.textContent='Connection error — please check your internet and try again.';
-    btn.textContent='Open My Timebook →';btn.disabled=false;currentUser=null;
-  }
+  try{await initApp();saveLocal(name,id);}
+  catch(e){console.error(e);err.textContent='Connection error — please check your internet and try again.';btn.textContent='Open My Timebook →';btn.disabled=false;currentUser=null;}
 }
 
 document.getElementById('w-id').addEventListener('keydown',e=>{if(e.key==='Enter')startApp();});
@@ -248,12 +222,28 @@ async function initApp(){
   document.getElementById('user-pill').textContent=currentUser.name;
   document.getElementById('sheet-area').innerHTML='<div class="loading"><div class="spinner"></div><span>Loading your timesheets…</span></div>';
   const existing=await loadSheets(currentUser.employeeId);
+
+  // Load roster data to pre-fill rostered hours
+  let rosterMap={};
+  try{
+    const rosterData=await sb('/rosters?employee_id=eq.'+encodeURIComponent(currentUser.employeeId)+'&year=eq.2026&select=*');
+    (rosterData||[]).forEach(r=>{rosterMap[r.month_index]=r;});
+  }catch(e){console.warn('Could not load roster data:',e);}
+
   MONTHS.forEach((_,i)=>{
     const f=existing.find(x=>x.month_index===i);
     monthMeta[i]={status:f?f.status:'draft',spId:f?f.id:null};
     let rows=null;
     if(f&&f.rows){try{rows=typeof f.rows==='string'?JSON.parse(f.rows):f.rows;}catch(e){rows=null;}}
-    monthRows[i]=rows||buildEmpty(i);
+    if(!rows){
+      rows=buildEmpty(i);
+      if(rosterMap[i]&&rosterMap[i].days){
+        const dayMap={};
+        rosterMap[i].days.forEach(d=>{dayMap[d.date]=d.hours;});
+        rows.forEach(row=>{if(dayMap[row.date])row.rostered=dayMap[row.date];});
+      }
+    }
+    monthRows[i]=rows;
   });
   renderTabs();renderSheet();
   setTimeout(()=>{const a=document.querySelector('.mtab.active');if(a)a.scrollIntoView({inline:'center',behavior:'smooth'});},100);
@@ -288,8 +278,8 @@ function renderSheet(){
   const t=totals(rows);
   document.getElementById('print-hdr').innerHTML='<strong>'+currentUser.name+'</strong> ('+currentUser.employeeId+') — '+MONTHS[currentMonth]+' 2026 · Status: '+meta.status;
   let html='';
-  if(sub) html+='<div class="s-banner b-submitted">⏳ Submitted — awaiting manager approval</div>';
-  if(locked) html+='<div class="s-banner b-approved">✓ Approved &amp; locked</div>';
+  if(sub)html+='<div class="s-banner b-submitted">⏳ Submitted — awaiting manager approval</div>';
+  if(locked)html+='<div class="s-banner b-approved">✓ Approved &amp; locked</div>';
   html+='<div class="summary-bar"><div class="stat"><span class="stat-val">'+t.worked.toFixed(2)+'</span><span class="stat-lbl">Worked</span></div><div class="stat"><span class="stat-val">'+t.rostered.toFixed(2)+'</span><span class="stat-lbl">Rostered</span></div><div class="stat"><span class="stat-val '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="stat-lbl">Variation</span></div><div class="stat"><span class="stat-val" style="font-size:12px">'+MONTHS[currentMonth]+'</span><span class="stat-lbl">Period</span></div></div>';
   html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>';
   rows.forEach((row,idx)=>{
@@ -299,8 +289,8 @@ function renderSheet(){
   html+='</tbody></table></div>';
   document.getElementById('sheet-area').innerHTML=html;
   let acts='';
-  if(edit) acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn btn-submit" onclick="openModal(\'modal-submit\')">Submit for Approval →</button>';
-  else if(sub) acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn" disabled>Awaiting Approval…</button>';
+  if(edit)acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn btn-submit" onclick="openModal(\'modal-submit\')">Submit for Approval →</button>';
+  else if(sub)acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn" disabled>Awaiting Approval…</button>';
   else acts='<button class="btn btn-submit" style="background:var(--green);border-color:var(--green)" onclick="window.print()">🖨 Print Approved Timesheet</button>';
   document.getElementById('action-bar').innerHTML=acts;
 }
@@ -365,5 +355,3 @@ async function confirmSubmit(){
 </script>
 </body>
 </html>
-Done
-Copy everything above f
