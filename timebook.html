@@ -11,6 +11,7 @@
   --amber:#BA7517; --amber-light:#FAEEDA;
   --green:#3B6D11; --green-light:#EAF3DE;
   --red:#A32D2D; --red-light:#FCEBEB;
+  --blue:#1a5fa8; --blue-light:#E8F0FB;
   --gray-bg:#F5F5F3; --border:#E2E0D9;
   --text:#1A1A18; --muted:#6B6B66;
   --white:#FFFFFF; --radius:10px; --radius-lg:14px;
@@ -58,12 +59,14 @@ tbody tr { border-bottom:1px solid var(--border); }
 tbody tr:hover { background:#FAFAF8; }
 tbody tr.ph { background:#FFF8EC; }
 tbody tr.we { background:#FAFAF8; opacity:0.72; }
+tbody tr.sh { background:#EEF3FC; }
 tbody td { padding:4px 3px; text-align:center; vertical-align:middle; }
 tbody td:first-child { padding-left:16px; text-align:left; }
 tbody td:last-child { padding-right:16px; }
 .date-cell { display:flex; flex-direction:column; line-height:1.3; }
 .dn { font-size:10px; color:var(--muted); } .dd { font-size:13px; font-weight:700; }
 .ph-tag { font-size:9px; background:var(--amber); color:white; padding:1px 4px; border-radius:4px; margin-top:2px; display:inline-block; }
+.sh-tag { font-size:9px; background:var(--blue); color:white; padding:1px 4px; border-radius:4px; margin-top:2px; display:inline-block; }
 input.ti { width:64px; font-size:12px; padding:5px 3px; border:1px solid var(--border); border-radius:7px; text-align:center; background:var(--white); color:var(--text); }
 input.ti:focus { outline:none; border-color:var(--teal); background:#F0FAF6; }
 input.ti.ros { width:46px; } input.ti.nts { width:96px; font-size:11px; }
@@ -98,6 +101,7 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
   thead th { font-size:6px!important; padding:1px 2px!important; background:#f0f0f0!important; border:1px solid #ccc!important; text-align:center!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   tbody td { padding:1px 2px!important; border:1px solid #ddd!important; font-size:6px!important; line-height:1.1!important; }
   tbody tr.ph { background:#fff3cd!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  tbody tr.sh { background:#e8f0fb!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   tbody tr.we { background:#f8f8f8!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .pos { color:#2d6a0a!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .neg { color:#8b0000!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -107,6 +111,7 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
   .dn { font-size:5px!important; color:#666!important; }
   .dd { font-size:7px!important; font-weight:bold!important; }
   .ph-tag { font-size:5px!important; padding:0 1px!important; background:#BA7517!important; color:white!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .sh-tag { font-size:5px!important; padding:0 1px!important; background:#1a5fa8!important; color:white!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .print-hdr { display:block!important; padding:0 0 3px 0; font-size:9px; border-bottom:1px solid #333; margin-bottom:3px; }
   .print-summary { display:flex!important; gap:12px; margin-bottom:3px; font-size:7px; flex-wrap:wrap; }
   .print-sigs { display:flex!important; gap:20px; margin-top:8px; padding-top:6px; border-top:1px solid #ccc; }
@@ -211,15 +216,36 @@ const SUPABASE_URL = 'https://qzpbupizqaxssyhecsdx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGJ1cGl6cWF4c3N5aGVjc2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDM5ODksImV4cCI6MjA5NjE3OTk4OX0.WMQTiPz-AsEl-nzAzn4zRnbZdmqOObUFdLvaagrwJ4Q';
 const SP_SITE_URL = 'https://schoolssaedu.sharepoint.com/sites/PLJPSSSOTIMEBOOKS';
 const SP_NOTIFY_LIST = 'Notifications';
-const MANAGER_EMAIL = 'kelsey.enright748@schools.sa.edu.au';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
 const PUBLIC_HOLIDAYS = {
   '2026-01-01':"New Year's Day",'2026-01-26':'Australia Day',
   '2026-04-03':'Good Friday','2026-04-06':'Easter Monday',
   '2026-04-25':'ANZAC Day','2026-06-08':"King's Birthday",
   '2026-12-25':'Christmas Day','2026-12-28':'Proclamation Day (sub)'
 };
+
+// SA school term dates 2026 — days inside these ranges are school days
+const SCHOOL_TERMS = [
+  ['2026-01-27','2026-04-11'], // Term 1
+  ['2026-04-28','2026-07-03'], // Term 2
+  ['2026-07-20','2026-09-25'], // Term 3
+  ['2026-10-12','2026-12-11'], // Term 4
+];
+
+function isSchoolHoliday(iso){
+  if(PUBLIC_HOLIDAYS[iso])return false;
+  const d=new Date(iso+'T00:00:00');
+  const dw=d.getDay();
+  if(dw===0||dw===6)return false; // weekends not school holidays
+  if(d<new Date('2026-01-27T00:00:00'))return true;
+  if(d>new Date('2026-12-11T00:00:00'))return true;
+  for(const [start,end] of SCHOOL_TERMS){
+    if(d>=new Date(start+'T00:00:00')&&d<=new Date(end+'T00:00:00'))return false;
+  }
+  return true;
+}
 
 let currentUser=null,currentMonth=new Date().getMonth();
 let monthMeta={},monthRows={},saveTimer=null,isSaving=false;
@@ -312,7 +338,7 @@ function buildEmpty(mi){
   const days=new Date(2026,mi+1,0).getDate();
   return Array.from({length:days},(_,i)=>{
     const d=i+1,iso='2026-'+String(mi+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    return{date:iso,arrival:'',startBreak1:'',endBreak1:'',startBreak2:'',endBreak2:'',depart:'',rostered:'',notes:'',isPublicHoliday:!!PUBLIC_HOLIDAYS[iso],phName:PUBLIC_HOLIDAYS[iso]||''};
+    return{date:iso,arrival:'',startBreak1:'',endBreak1:'',startBreak2:'',endBreak2:'',depart:'',rostered:'',notes:'',isPublicHoliday:!!PUBLIC_HOLIDAYS[iso],phName:PUBLIC_HOLIDAYS[iso]||'',isSchoolHoliday:isSchoolHoliday(iso)};
   });
 }
 
@@ -349,9 +375,10 @@ function renderSheet(){
   if(sub)html+='<div class="s-banner b-submitted">⏳ Submitted — awaiting manager approval</div>';
   if(locked)html+='<div class="s-banner b-approved">✓ Approved &amp; locked</div>';
   html+='<div class="summary-bar"><div class="stat"><span class="stat-val">'+t.worked.toFixed(2)+'</span><span class="stat-lbl">Worked</span></div><div class="stat"><span class="stat-val">'+t.rostered.toFixed(2)+'</span><span class="stat-lbl">Rostered</span></div><div class="stat"><span class="stat-val '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="stat-lbl">Variation</span></div><div class="stat"><span class="stat-val" style="font-size:12px">'+MONTHS[currentMonth]+'</span><span class="stat-lbl">Period</span></div></div>';
-  html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes / OT Approval</th></tr></thead><tbody>';
+  html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</span></th><th>Variation</th><th>Notes / OT Approval</th></tr></thead><tbody>';
   rows.forEach((row,idx)=>{
-    const ph=row.isPublicHoliday,we=isWE(row.date),w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
+    const ph=row.isPublicHoliday,we=isWE(row.date),sh=row.isSchoolHoliday||isSchoolHoliday(row.date),w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
+    const rowClass=ph?'ph':we?'we':sh?'sh':'';
     const hasOT=row._overtimeApprover;
     let notesCell='';
     if(hasOT){
@@ -359,9 +386,11 @@ function renderSheet(){
     }else{
       notesCell='<td><input class="ti nts" type="text" value="'+(row.notes||'')+'" '+dis+' placeholder="'+(ph?row.phName:'')+'" oninput="cell('+idx+',\'notes\',this.value)"></td>';
     }
-    html+='<tr class="'+(ph?'ph':we?'we':'')+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?(vn>=0?'+':'')+v:'—')+'</td>'+notesCell+'</tr>';
+    html+='<tr class="'+rowClass+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':sh?'<span class="sh-tag">SH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?(vn>=0?'+':'')+v:'—')+'</td>'+notesCell+'</tr>';
   });
   html+='</tbody></table></div>';
+  // Legend
+  html+='<div style="display:flex;gap:16px;padding:10px 16px;font-size:11px;color:var(--muted);flex-wrap:wrap;"><span><span style="display:inline-block;width:10px;height:10px;background:#FFF8EC;border:1px solid var(--amber);border-radius:2px;margin-right:4px;vertical-align:middle"></span>Public Holiday</span><span><span style="display:inline-block;width:10px;height:10px;background:#EEF3FC;border:1px solid var(--blue);border-radius:2px;margin-right:4px;vertical-align:middle"></span>School Holiday</span></div>';
   document.getElementById('sheet-area').innerHTML=html;
   let acts='';
   if(edit)acts='<button class="btn btn-print" onclick="window.print()">🖨</button><button class="btn btn-submit" onclick="openModal(\'modal-submit\')">Submit for Approval →</button>';
@@ -417,6 +446,7 @@ function saveDayOvertime(){
   monthRows[currentMonth][idx]._overtimeApprover=approver;
   monthRows[currentMonth][idx]._overtimeReason=reason;
   closeModal('modal-overtime-day');
+  renderSheet();
   clearTimeout(saveTimer);saveTimer=setTimeout(autoSave,2000);
 }
 
