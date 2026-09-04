@@ -89,13 +89,27 @@ input.ti:disabled { background:var(--gray-bg)!important; border-color:transparen
 .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @media print {
-  body { background:white; padding:0; }
-  .top-bar,.action-bar,.save-ind,.modal-bg,#welcome-screen { display:none!important; }
+  @page { size: A4 landscape; margin: 8mm; }
+  body { background:white; padding:0; font-size:8px; }
+  .top-bar,.action-bar,.save-ind,.modal-bg,#welcome-screen,.s-banner { display:none!important; }
   #app-screen { display:block!important; }
-  table { min-width:unset; font-size:10px; }
-  input.ti { border:none; background:transparent; color:black; width:auto; }
+  .summary-bar { padding:4px 8px; border:1px solid #ccc; border-radius:4px; margin-bottom:4px; }
+  .stat-val { font-size:13px!important; }
+  .stat-lbl { font-size:8px!important; }
+  .tbl-scroll { overflow:visible; }
+  table { min-width:unset!important; font-size:7px; width:100%; border-collapse:collapse; }
+  thead th { font-size:7px!important; padding:3px 2px!important; background:#f0f0f0!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  tbody td { padding:2px 2px!important; }
+  input.ti { border:none!important; background:transparent!important; color:black!important; width:auto!important; font-size:7px!important; padding:0!important; text-align:center; }
+  .calc { font-size:7px!important; }
   .ph { background:#fff8ec!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .print-hdr { display:block!important; padding:12px 16px 4px; font-size:13px; }
+  .we { background:#f5f5f5!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pos { color:#3B6D11!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .neg { color:#A32D2D!important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .ph-tag { font-size:6px!important; padding:0 2px!important; }
+  .dn { font-size:6px!important; }
+  .dd { font-size:8px!important; }
+  .print-hdr { display:block!important; padding:0 0 4px 0; font-size:10px; border-bottom:1px solid #ccc; margin-bottom:4px; }
 }
 .print-hdr { display:none; }
 </style>
@@ -294,16 +308,22 @@ function renderSheet(){
   const rows=monthRows[currentMonth],meta=monthMeta[currentMonth];
   const locked=meta.status==='approved',sub=meta.status==='submitted',edit=!locked&&!sub,dis=edit?'':'disabled';
   const t=totals(rows);
-  document.getElementById('print-hdr').innerHTML='<strong>'+currentUser.name+'</strong> ('+currentUser.employeeId+') — '+MONTHS[currentMonth]+' 2026 · Status: '+meta.status;
+  document.getElementById('print-hdr').innerHTML='<strong>'+currentUser.name+'</strong> &nbsp;|&nbsp; ID: '+currentUser.employeeId+' &nbsp;|&nbsp; '+MONTHS[currentMonth]+' 2026 &nbsp;|&nbsp; Status: '+meta.status+' &nbsp;|&nbsp; Total worked: '+t.worked.toFixed(2)+'hrs &nbsp;|&nbsp; Rostered: '+t.rostered.toFixed(2)+'hrs &nbsp;|&nbsp; Variation: '+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'hrs';
   let html='';
   if(sub)html+='<div class="s-banner b-submitted">⏳ Submitted — awaiting manager approval</div>';
   if(locked)html+='<div class="s-banner b-approved">✓ Approved &amp; locked</div>';
   html+='<div class="summary-bar"><div class="stat"><span class="stat-val">'+t.worked.toFixed(2)+'</span><span class="stat-lbl">Worked</span></div><div class="stat"><span class="stat-val">'+t.rostered.toFixed(2)+'</span><span class="stat-lbl">Rostered</span></div><div class="stat"><span class="stat-val '+(t.variation>=0?'pos':'neg')+'">'+(t.variation>=0?'+':'')+t.variation.toFixed(2)+'</span><span class="stat-lbl">Variation</span></div><div class="stat"><span class="stat-val" style="font-size:12px">'+MONTHS[currentMonth]+'</span><span class="stat-lbl">Period</span></div></div>';
-  html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes</th></tr></thead><tbody>';
+  html+='<div class="tbl-scroll"><table><thead><tr><th>Date</th><th>Arrival</th><th>Brk 1<br>Start</th><th>Brk 1<br>End</th><th>Brk 2<br>Start</th><th>Brk 2<br>End</th><th>Depart</th><th>Worked</th><th>Rostered</th><th>Variation</th><th>Notes / OT Approval</th></tr></thead><tbody>';
   rows.forEach((row,idx)=>{
     const ph=row.isPublicHoliday,we=isWE(row.date),w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
-    const otIcon=row._overtimeApprover?'✓ ':'';
-    html+='<tr class="'+(ph?'ph':we?'we':'')+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?otIcon+(vn>=0?'+':'')+v:'—')+'</td><td><input class="ti nts" type="text" value="'+(row.notes||'')+'" '+dis+' placeholder="'+(row.phName||'')+'" oninput="cell('+idx+',\'notes\',this.value)"></td></tr>';
+    const hasOT=row._overtimeApprover;
+    let notesCell='';
+    if(hasOT){
+      notesCell='<td style="font-size:10px;color:var(--green);font-weight:600">✓ '+row._overtimeApprover+': '+row._overtimeReason+'</td>';
+    }else{
+      notesCell='<td><input class="ti nts" type="text" value="'+(row.notes||'')+'" '+dis+' placeholder="'+(ph?row.phName:'')+'" oninput="cell('+idx+',\'notes\',this.value)"></td>';
+    }
+    html+='<tr class="'+(ph?'ph':we?'we':'')+'"><td><div class="date-cell"><span class="dn">'+dayName(row.date)+'</span><span class="dd">'+parseInt(row.date.split('-')[2])+'</span>'+(ph?'<span class="ph-tag">PH</span>':'')+'</div></td><td><input class="ti" type="text" value="'+(row.arrival||'')+'" '+dis+' placeholder="08:00" oninput="cell('+idx+',\'arrival\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak1||'')+'" '+dis+' placeholder="12:00" oninput="cell('+idx+',\'startBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak1||'')+'" '+dis+' placeholder="12:30" oninput="cell('+idx+',\'endBreak1\',this.value)"></td><td><input class="ti" type="text" value="'+(row.startBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'startBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.endBreak2||'')+'" '+dis+' placeholder="" oninput="cell('+idx+',\'endBreak2\',this.value)"></td><td><input class="ti" type="text" value="'+(row.depart||'')+'" '+dis+' placeholder="16:30" oninput="cell('+idx+',\'depart\',this.value)"></td><td class="calc" id="w-'+idx+'">'+(w||'—')+'</td><td><input class="ti ros" type="text" value="'+(row.rostered||'')+'" '+dis+' placeholder="7.6" oninput="cell('+idx+',\'rostered\',this.value)"></td><td class="calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'')+'" id="v-'+idx+'">'+(v!==''?(vn>=0?'+':'')+v:'—')+'</td>'+notesCell+'</tr>';
   });
   html+='</tbody></table></div>';
   document.getElementById('sheet-area').innerHTML=html;
@@ -321,11 +341,7 @@ function cell(idx,field,value){
   const row=monthRows[currentMonth][idx],w=calcWorked(row),v=calcVar(row),vn=parseFloat(v);
   const wEl=document.getElementById('w-'+idx),vEl=document.getElementById('v-'+idx);
   if(wEl)wEl.textContent=w||'—';
-  if(vEl){
-    const otIcon=row._overtimeApprover?'✓ ':'';
-    vEl.textContent=v!==''?otIcon+(vn>=0?'+':'')+v:'—';
-    vEl.className='calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'');
-  }
+  if(vEl){vEl.textContent=v!==''?(vn>=0?'+':'')+v:'—';vEl.className='calc '+(!isNaN(vn)?(vn>=0?'pos':'neg'):'');}
   const t=totals(monthRows[currentMonth]),sv=document.querySelectorAll('.stat-val');
   if(sv[0])sv[0].textContent=t.worked.toFixed(2);
   if(sv[1])sv[1].textContent=t.rostered.toFixed(2);
@@ -365,6 +381,7 @@ function saveDayOvertime(){
   monthRows[currentMonth][idx]._overtimeApprover=approver;
   monthRows[currentMonth][idx]._overtimeReason=reason;
   closeModal('modal-overtime-day');
+  renderSheet();
   clearTimeout(saveTimer);saveTimer=setTimeout(autoSave,2000);
 }
 
